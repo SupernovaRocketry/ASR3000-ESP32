@@ -220,10 +220,10 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("Inicializando o cartão SD...");
-  SPIClass spi = SPIClass (CS_PIN); //cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
+  SPIClass spi = SPIClass (HSPI); //cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
   spi.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN); //inicia a conexão spi
 
-  if(!SD.begin(CS_PIN)) //verifica se o cartão sd foi encontrado através da conexão CS do SPI
+  if(!SD.begin(CS_PIN, spi,80000000)) //verifica se o cartão sd foi encontrado através da conexão CS do SPI
   {
     Serial.println("Cartão SD não encontrado.");
     return;
@@ -240,6 +240,18 @@ void setup() {
   
   Wire.begin(); //mais uma vez, sei la pra que isso
   bmp.begin(0x76); //inicia o bmp neste endereço. Mudar para 0x78 ou parecido caso dê erro
+  gpsSerial.begin(9600);
+  Wire.beginTransmission(MPU);
+  Wire.write(0x6B);
+  // Inicializa o MPU -6050
+  Wire.write(0);
+  Wire.endTransmission(1);
+  bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
+                Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
 
   xTaskCreate(task_bmp, "task bmp", 3000, NULL, 1, NULL); //cria a task que trata os dados
   xTaskCreate(task_gps, "task gps", 3000, NULL, 1, NULL); //cria a task que salva no cartão SD

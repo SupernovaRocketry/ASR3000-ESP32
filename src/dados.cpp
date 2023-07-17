@@ -100,6 +100,20 @@ void sensor_mpu()
   GyX_atual = Wire.read() << 8 | Wire.read();
   GyY_atual = Wire.read() << 8 | Wire.read();
   GyZ_atual = Wire.read() << 8 | Wire.read();
+  Serial.print(" AcX = ");
+  Serial.print(AcX_atual);
+  Serial.print(" | AcY = ");
+  Serial.print(AcY_atual);
+  Serial.print(" | AcZ = ");
+  Serial.print(AcZ_atual);
+  // Serial.print(" | Tmp = ");
+  // Serial.print(Tmp / 340.00 + 36.53);
+  Serial.print(" | GyX = ");
+  Serial.print(GyX_atual);
+  Serial.print(" | GyY = ");
+  Serial.print(GyY_atual);
+  Serial.print(" | GyZ = ");
+  Serial.println(GyZ_atual);
 }
 
 void sensor_GPS()
@@ -114,6 +128,9 @@ void sensor_GPS()
   {
     latitude_atual = gps.location.lat();
     longitude_atual = gps.location.lng();
+    Serial.println(gps.location.lat()); // IMPRIME NA SERIAL O VALOR DA LATIDUE LIDA
+    Serial.println(gps.location.lng()); // IMPRIME NA SERIAL O VALOR DA LONGITUDE LIDA
+
   }
   if(millis() > 5000 && gps.charsProcessed() < 10) 
   {
