@@ -20,7 +20,7 @@
 #include <defs.h>
 
 // A FAZER
-// USAR BIBLIOTECA MPU (SETAR EM 16Gs)
+// USAR BIBLIOTECA MPU (SETAR EM 16Gs)  
 // COMBINAR TASKS DE I2C (MPU E BMP)
 // REMOVER FUNÇÕES DESNECESSÁRIAS (QUE SÓ APARECEM 1 VEZ NO CÓDIGO
 // OTIMIZAÇÃO: VER QUESTÃO DE TIPO DE VARIÁVEIS
@@ -119,38 +119,37 @@ void task_i2c_sensores(void *pvParameters)
   {
     if(xSemaphoreTake(xMutex, portMAX_DELAY)==pdTRUE)
     {
-#ifdef SERIAL_DEBUG
-      Serial.println("Task dos sensores BMP e MPU iniciada.");
-#endif
+    #ifdef SERIAL_DEBUG
+          Serial.println("Task dos sensores BMP e MPU iniciada.");
+    #endif
       while(contador_i2c < 100)
       {
         pressao_atual = bmp.readPressure();
         temperatura_atual = bmp.readTemperature();
         altitude_atual = bmp.readAltitude();
-#ifdef SERIAL_DEBUG
-        data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25);
-        Serial.println(data_line);
-#endif
-      sensors_event_t a, g, temp;
-      mpu.getEvent(&a, &g, &temp);
-      AcX_atual = a.gyro.x;
-      AcY_atual = a.gyro.y;
-      AcZ_atual = a.gyro.z;
-      GyX_atual = g.gyro.x;
-      GyY_atual = g.gyro.y;
-      GyZ_atual = g.gyro.z;
+        #ifdef SERIAL_DEBUG
+                data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25);
+                Serial.println(data_line);
+        #endif
+        sensors_event_t a, g, temp;
+        mpu.getEvent(&a, &g, &temp);
+        AcX_atual = a.gyro.x;
+        AcY_atual = a.gyro.y;
+        AcZ_atual = a.gyro.z;
+        GyX_atual = g.gyro.x;
+        GyY_atual = g.gyro.y;
+        GyZ_atual = g.gyro.z;
 
 
-      altitude_values[contador_i2c] = altitude_atual;
-      temperature_values[contador_i2c] = temperatura_atual;
-      pressure_values[contador_i2c] = pressao_atual / P0;
-      AcX_values[contador_i2c] = AcX_atual;
-      AcY_values[contador_i2c] = AcY_atual;
-      AcZ_values[contador_i2c] = AcZ_atual;
-      GyX_values[contador_i2c] = GyX_atual;
-      GyY_values[contador_i2c] = GyY_atual;
-      GyZ_values[contador_i2c] = GyZ_atual;
-
+        altitude_values[contador_i2c] = altitude_atual;
+        temperature_values[contador_i2c] = temperatura_atual;
+        pressure_values[contador_i2c] = pressao_atual / P0;
+        AcX_values[contador_i2c] = AcX_atual;
+        AcY_values[contador_i2c] = AcY_atual;
+        AcZ_values[contador_i2c] = AcZ_atual;
+        GyX_values[contador_i2c] = GyX_atual;
+        GyY_values[contador_i2c] = GyY_atual;
+        GyZ_values[contador_i2c] = GyZ_atual;
       }
     }
     contador_i2c = 0;
@@ -180,12 +179,12 @@ void task_gps(void *pvParameters) // task do gps
               tempo_values[contador_gps] = tempo_atual;
               latitude_values[contador_gps] = latitude_atual;
               longitude_values[contador_gps] = longitude_atual;
-#ifdef SERIAL_DEBUG
-              Serial.println(data_atual);
-              Serial.println(tempo_atual);
-              Serial.println(latitude_atual);
-              Serial.println(longitude_atual);
-#endif
+              #ifdef SERIAL_DEBUG
+                            Serial.println(data_atual);
+                            Serial.println(tempo_atual);
+                            Serial.println(latitude_atual);
+                            Serial.println(longitude_atual);
+              #endif
               contador_gps++;
             }
           }
