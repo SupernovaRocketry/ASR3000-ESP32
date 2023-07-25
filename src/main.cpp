@@ -11,6 +11,8 @@
 #include <TinyGPS++.h>         // biblioteca do GPS
 #include <SoftwareSerial.h>    // usa no gps
 #include <LoRa.h>              // lora
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
 
 // headers
 #include <main.h>
@@ -46,6 +48,7 @@ double temperatura_atual;
 
 // variáveis do sensor MPU6050
 int MPU = 0x68;
+Adafruit_MPU6050 mpu;
 int AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
 
 // variáveis do GPS
@@ -108,63 +111,51 @@ int longitude_values_size = sizeof(longitude_values) / sizeof(longitude_values[0
 
 SemaphoreHandle_t xMutex; // objeto do semáforo das tasks
 
-void task_bmp(void *pvParameters) // task do bmp
+void task_i2c_sensores(void *pvParameters)
 {
+  uint32_t contador_i2c;
   String data_line;
-  while (1)
+  while(1)
   {
-    Serial.println("Task de apreensão dos dados do BMP iniciada");
-    if (xMutex != NULL)
+    if(xSemaphoreTake(xMutex, portMAX_DELAY)==pdTRUE)
     {
-      if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-      {
-        while (contador_bmp < 100)
-        {
-          sensor_bmp(bmp);
-          data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25);
 #ifdef SERIAL_DEBUG
-          Serial.println(data_line);
+      Serial.println("Task dos sensores BMP e MPU iniciada.");
 #endif
-          altitude_values[contador_bmp] = altitude_atual;
-          temperature_values[contador_bmp] = temperatura_atual;
-          pressure_values[contador_bmp] = pressao_atual / P0;
-          contador_bmp++;
-        }
-      }
-#ifdef SERIAL_DEBUG
-      Serial.println("acabou a task aqui");
-#endif
-      xSemaphoreGive(xMutex);
-      contador_bmp = 0;
-    }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-}
-
-void task_mpu(void *pvParameters) // task do mpu
-{
-  while (1)
-  {
-    Serial.println("Task de apreensão dos dados do MPU iniciada");
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-    {
-      while (contador_mpu < 100)
+      while(contador_i2c < 100)
       {
-        sensor_mpu();
+        pressao_atual = bmp.readPressure();
+        temperatura_atual = bmp.readTemperature();
+        altitude_atual = bmp.readAltitude();
+#ifdef SERIAL_DEBUG
+        data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25);
+        Serial.println(data_line);
+#endif
+      sensors_event_t a, g, temp;
+      mpu.getEvent(&a, &g, &temp);
+      AcX_atual = a.gyro.x;
+      AcY_atual = a.gyro.y;
+      AcZ_atual = a.gyro.z;
+      GyX_atual = g.gyro.x;
+      GyY_atual = g.gyro.y;
+      GyZ_atual = g.gyro.z;
 
-        AcX_values[contador_mpu] = AcX_atual;
-        AcY_values[contador_mpu] = AcY_atual;
-        AcZ_values[contador_mpu] = AcZ_atual;
-        GyX_values[contador_mpu] = GyX_atual;
-        GyY_values[contador_mpu] = GyY_atual;
-        GyZ_values[contador_mpu] = GyZ_atual;
-        contador_mpu++;
+
+      altitude_values[contador_i2c] = altitude_atual;
+      temperature_values[contador_i2c] = temperatura_atual;
+      pressure_values[contador_i2c] = pressao_atual / P0;
+      AcX_values[contador_i2c] = AcX_atual;
+      AcY_values[contador_i2c] = AcY_atual;
+      AcZ_values[contador_i2c] = AcZ_atual;
+      GyX_values[contador_i2c] = GyX_atual;
+      GyY_values[contador_i2c] = GyY_atual;
+      GyZ_values[contador_i2c] = GyZ_atual;
+
       }
     }
-    Serial.println("Acabou a task do MPU!!!_______");
+    contador_i2c = 0;
     xSemaphoreGive(xMutex);
-    contador_mpu = 0;
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
@@ -189,10 +180,12 @@ void task_gps(void *pvParameters) // task do gps
               tempo_values[contador_gps] = tempo_atual;
               latitude_values[contador_gps] = latitude_atual;
               longitude_values[contador_gps] = longitude_atual;
+#ifdef SERIAL_DEBUG
               Serial.println(data_atual);
               Serial.println(tempo_atual);
               Serial.println(latitude_atual);
               Serial.println(longitude_atual);
+#endif
               contador_gps++;
             }
           }
@@ -225,24 +218,34 @@ void task_envia_lora(void *pvParameters) //
   while (1)
   {
     Serial.println("Task do LoRa iniciada");
-    if (xMutex != NULL)
-    {
-      if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-      {
-        envia_LoRa(); // NÃO PRECISA
-      }
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
+    {   
+      LoRa.beginPacket();
+      LoRa.write(destination);       // Adiciona o endereco de destino
+      LoRa.write(localAddress);
+      LoRa.write(msgCount);  
+      LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
+      LoRa.print(string_dados_lora);          // Vetor da mensagem
+      msgCount++;                    // Contador do numero de mensagnes enviadas
+      LoRa.endPacket();
+    
+      Serial.println(" Enviando os dados ao LoRa");
+      string_dados_lora = "";
+      msgCount++;   
+      vTaskDelay(1000);
     }
-    xSemaphoreGive(xMutex);
   }
+  xSemaphoreGive(xMutex);
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
+  
 
 void setup()
 {
   xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
-  //IFDEF AQUI
+#ifdef SERIAL_DEBUG
   Serial.begin(115200);
-  //ENDIF AQUI
+#endif
   delay(1000);
   Serial.println("Inicializando o cartão SD...");
   SPIClass spi = SPIClass(HSPI);                  // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
@@ -257,7 +260,16 @@ void setup()
 
   LoRa.setPins(csPin, resetPin, irqPin);
 
-  while (!LoRa.begin(BAND)) //FREQUENCIA DO LORA 
+  if(!mpu.begin())
+  {
+    Serial.println("MPU não encontrado");
+  }
+  Serial.println("MPU encontrado.");
+  mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  mpu.setFilterBandwidth(MPU6050_BAND_5_HZ);
+
+  while(!LoRa.begin(BAND)) //FREQUENCIA DO LORA 
   {
     //IFDEF
     Serial.println("Falha ao iniciar o módulo LoRa. Verifique as conexões.");
@@ -267,11 +279,6 @@ void setup()
   Wire.begin();    // mais uma vez, sei la pra que isso
   bmp.begin(0x76); // inicia o bmp neste endereço. Mudar para 0x78 ou parecido caso dê erro
   gpsSerial.begin(9600);
-  Wire.beginTransmission(MPU);
-  Wire.write(0x6B);
-  // Inicializa o MPU -6050
-  Wire.write(0);
-  Wire.endTransmission(1);
 
   //PESQUISAR SOBRE MODOS E OPÇÕES DO BMP
   bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
@@ -280,9 +287,8 @@ void setup()
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
-  xTaskCreate(task_bmp, "task bmp", 3000, NULL, 1, NULL);         // cria a task que trata os dados
+  xTaskCreate(task_i2c_sensores, "task bmp", 3000, NULL, 1, NULL);         // cria a task que trata os dados
   xTaskCreate(task_gps, "task gps", 3000, NULL, 1, NULL);         // cria a task que salva no cartão SD
-  xTaskCreate(task_mpu, "task mpu", 3000, NULL, 1, NULL);         // cria a task que trata os dados
   xTaskCreate(task_gravaSD, "task sd", 3000, NULL, 1, NULL);      // cria a task que salva no cartão SD
   xTaskCreate(task_envia_lora, "task lora", 3000, NULL, 1, NULL); // cria a task que envia os dados pelo LoRa
   
