@@ -252,7 +252,7 @@ void task_envia_lora(void *pvParameters) //
       Serial.println(" Enviando os dados ao LoRa");
       string_dados_lora = "";
       msgCount++;   
-      vTaskDelay(1000);
+      vTaskDelay(1000);// tem que adicionar portTICK_PERIOD_MS?
     }
   }
   xSemaphoreGive(xMutex);
@@ -349,7 +349,7 @@ void setup()
     #endif
     statusAtual = ESTADO_ESPERA;
     ledcAttachPin(PINO_BUZZER, 1);
-    vTaskDelay(1000);
+    vTaskDelay(1000/ portTICK_PERIOD_MS);
     ledcAttachPin(PINO_BUZZER, 0);
   }
   else{
@@ -369,5 +369,5 @@ void setup()
 
 void loop()
 {
-  //XTASKDELAY PEQUENO
+  vTaskDelay(100/ portTICK_PERIOD_MS);
 }
