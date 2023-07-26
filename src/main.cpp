@@ -66,6 +66,22 @@ byte msgCount = 0;        // Contador de mensagens enviadas
 byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0 xFF envia para todos devices )
 String string_dados_lora;
 
+//Variáveis de dados
+double alturaInicial = 0;
+double alturaMinima;
+double alturaMaxima =  0;
+
+// variáveis de controle
+bool gravando = false;
+bool abriuParaquedasMain = false;
+bool abriuParaquedasDrogue = false;
+bool abriuRedundanciaMain = false;
+bool abriuRedundanciaDrogue = false;
+char erro = false;
+char  statusAtual;
+bool estado;
+bool descendo = false;
+bool subindo = false;
 // contadores
 
 // mover contadores pra antes do while (1) da respectiva task
@@ -242,50 +258,102 @@ void task_envia_lora(void *pvParameters) //
 void setup()
 {
   xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
-#ifdef SERIAL_DEBUG
-  Serial.begin(115200);
-#endif
-  delay(1000);
-  Serial.println("Inicializando o cartão SD...");
+  #ifdef SERIAL_DEBUG
+    Serial.begin(115200);
+  #endif
+
+  //Inicializando as portas
+  pinMode(PINO_BOTAO,INPUT);
+  pinMode(PINO_BUZZER,OUTPUT);
+  pinMode(PINO_LED,OUTPUT);
+  //iniciando recuperação
+  pinMode(REC_MAIN, OUTPUT); //declara o pino do rec principal como output 
+  pinMode(REC_DROGUE, OUTPUT); 
+  digitalWrite(REC_MAIN, LOW); //inicializa em baixa 
+  digitalWrite(REC_DROGUE, LOW);
+
+  ledcAttachPin(PINO_BUZZER, 0);
+
+  erro='\0';
+  //Inicialização do SD
+  #ifdef SERIAL_DEBUG
+    Serial.println("Inicializando o cartão SD...");
+  #endif
   SPIClass spi = SPIClass(HSPI);                  // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
   spi.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN); // inicia a conexão spi
-
-  if (!SD.begin(CS_PIN, spi, 80000000)) // verifica se o cartão sd foi encontrado através da conexão CS do SPI
+  while(!SD.begin(CS_PIN, spi, 80000000)) // verifica se o cartão sd foi encontrado através da conexão CS do SPI
   {
-    Serial.println("Cartão SD não encontrado.");
-    return;
+    erro = ERRO_SD;
+    #ifdef SERIAL_DEBUG
+      Serial.println("Falha ao iniciar o cartão SD. Verifique as conexões.");
+    #endif
   }
-  Serial.println("Cartão SD encontrado.");
+  #ifdef SERIAL_DEBUG
+    Serial.println("Cartão SD encontrado.");
+  #endif
 
+  //Inicialização do LoRa
   LoRa.setPins(csPin, resetPin, irqPin);
-
-  if(!mpu.begin())
+  while(!LoRa.begin(BAND)) //FREQUENCIA DO LORA 
   {
-    Serial.println("MPU não encontrado");
+    erro = ERRO_LORA;
+    #ifdef SERIAL_DEBUG
+      Serial.println("Falha ao iniciar o módulo LoRa. Verifique as conexões.");
+    #endif
   }
-  Serial.println("MPU encontrado.");
+
+  //Inicialiazação do MPU6050
+  while(!mpu.begin())
+  {
+    erro = ERRO_ACEL;
+    #ifdef SERIAL_DEBUG
+      Serial.println("Falha ao iniciar o MPU6050. Verifique as conexões.");
+    #endif
+  }
+  #ifdef SERIAL_DEBUG
+    Serial.println("MPU encontrado.");
+  #endif
   mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
   mpu.setGyroRange(MPU6050_RANGE_500_DEG);
   mpu.setFilterBandwidth(MPU6050_BAND_5_HZ);
 
-  while(!LoRa.begin(BAND)) //FREQUENCIA DO LORA 
-  {
-    //IFDEF
-    Serial.println("Falha ao iniciar o módulo LoRa. Verifique as conexões.");
-    delay(1000);
+  //Inicialização do BMP280
+  while(!bmp.begin(0x76)) {
+    erro = ERRO_BMP;
+    #ifdef SERIAL_DEBUG
+      Serial.println("Falha ao iniciar o BMP280. Verifique as conexões.");
+    #endif
   }
-
-  Wire.begin();    // mais uma vez, sei la pra que isso
-  bmp.begin(0x76); // inicia o bmp neste endereço. Mudar para 0x78 ou parecido caso dê erro
-  gpsSerial.begin(9600);
-
+  #ifdef SERIAL_DEBUG
+    Serial.println("BMP encontrado.");
+  #endif
   //PESQUISAR SOBRE MODOS E OPÇÕES DO BMP
+  //Verificar necessidade do setSampling
   bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+  
+  //Inicialização do GPS
+  gpsSerial.begin(9600);
 
+  if(!erro){
+    #ifdef SERIAL_DEBUG
+      Serial.println("Todos os sensores foram inicializados com sucesso.");
+    #endif
+    statusAtual = ESTADO_ESPERA;
+    ledcAttachPin(PINO_BUZZER, 1);
+    vTaskDelay(1000);
+    ledcAttachPin(PINO_BUZZER, 0);
+  }
+  else{
+    #ifdef SERIAL_DEBUG
+      Serial.print("Altímetro com erro de inicialização código:");
+      Serial.println(erro);
+    #endif
+    statusAtual = erro;
+  }
   xTaskCreate(task_i2c_sensores, "task bmp", 3000, NULL, 1, NULL);         // cria a task que trata os dados
   xTaskCreate(task_gps, "task gps", 3000, NULL, 1, NULL);         // cria a task que salva no cartão SD
   xTaskCreate(task_gravaSD, "task sd", 3000, NULL, 1, NULL);      // cria a task que salva no cartão SD
