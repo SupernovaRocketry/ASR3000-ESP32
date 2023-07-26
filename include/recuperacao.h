@@ -1,8 +1,11 @@
 #ifndef RECUPERACAO_H
 #define RECUPERCAO_H
 
-void abreParaquedas();
-
 void recupera();
+
+void abreParaquedasMain();
+
+void abreParaquedasDrogue();
+
 
 #endif

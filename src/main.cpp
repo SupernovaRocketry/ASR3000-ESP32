@@ -18,6 +18,9 @@
 #include <main.h>
 #include <dados.h>
 #include <defs.h>
+#include <recuperacao.h>
+#include <estados.h>
+
 
 // A FAZER
 // USAR BIBLIOTECA MPU (SETAR EM 16Gs)  
@@ -72,6 +75,8 @@ double alturaMinima;
 double alturaMaxima =  0;
 
 // variáveis de controle
+unsigned long millisRecMain = 2000000;
+unsigned long millisRecDrogue = 1000000;
 bool gravando = false;
 bool abriuParaquedasMain = false;
 bool abriuParaquedasDrogue = false;
@@ -354,11 +359,12 @@ void setup()
     #endif
     statusAtual = erro;
   }
+
   xTaskCreate(task_i2c_sensores, "task bmp", 3000, NULL, 1, NULL);         // cria a task que trata os dados
   xTaskCreate(task_gps, "task gps", 3000, NULL, 1, NULL);         // cria a task que salva no cartão SD
   xTaskCreate(task_gravaSD, "task sd", 3000, NULL, 1, NULL);      // cria a task que salva no cartão SD
   xTaskCreate(task_envia_lora, "task lora", 3000, NULL, 1, NULL); // cria a task que envia os dados pelo LoRa
-  
+
 }
 
 void loop()

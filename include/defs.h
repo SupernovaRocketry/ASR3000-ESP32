@@ -33,6 +33,7 @@ int TXPin = 17;
 
 #define THRESHOLD_DESCIDA 2   //em metros
 #define THRESHOLD_SUBIDA 2  //em metros
+#define ALTURA_MAIN 500 //em metros
 #define ERRO_BMP 'b' //inicializa uma variável de erro para o BMP 
 
 #define ERRO_SD 's' //inicializa uma variável de erro para o leitor SD
