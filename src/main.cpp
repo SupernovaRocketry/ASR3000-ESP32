@@ -51,6 +51,7 @@ double altitude_atual;
 double temperatura_atual;
 double altitude_anterior = 0;
 double tempo_anterior = 0;
+double tempo_vel=0;
 double velocidade_atual=0;
 
 
@@ -158,10 +159,10 @@ void task_i2c_sensores(void *pvParameters)
         pressao_atual = bmp.readPressure();
         temperatura_atual = bmp.readTemperature();
         altitude_atual = bmp.readAltitude();
-        tempo_atual=millis();
-        velocidade_atual = (altitude_atual - altitude_anterior)/(tempo_atual - tempo_anterior);
+        tempo_vel=millis()/1000; // em segundos
+        velocidade_atual = (altitude_atual - altitude_anterior)/(tempo_vel - tempo_anterior);
         altitude_anterior = altitude_atual;
-        tempo_anterior = tempo_atual;
+        tempo_anterior = tempo_vel;
         #ifdef SERIAL_DEBUG
                 data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25)+ " | Velocidade: " + String(velocidade_atual);
                 Serial.println(data_line);
