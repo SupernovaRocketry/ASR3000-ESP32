@@ -57,7 +57,7 @@ void checaCondicoes() {
         }
 
         //verificar a altura máxima
-        if ((altitude_atual > alturaMaxima) && subiu){
+        if ((altitude_atual > alturaMaxima) && subindo){
             alturaMaxima =  altitude_atual;
         }
 

@@ -5,9 +5,8 @@
 #define BMP_SDA 21
 #define BMP_SCL 22
 
-//pinos do GPS. Estão em INT pois SoftwareSerial gpsSerial(RXPin, TXPin) só aceita INT como parâmetro, #define não funcionou
-int RXPin = 16;
-int TXPin = 17;
+// RXPin e TXPin do GPS são 16 e 17 respectivamente, estão declarados no Main porque não pode usar #define Gps só aceita int 
+//Colocando aqui o int, quando chamasse o include ia haver multiplas declarações da variavel
 
 //pinos do LoRa
 #define csPin 5  // Chip Select ( Slave Select do protocolo SPI ) do modulo Lora

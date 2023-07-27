@@ -38,10 +38,10 @@ void abreParaquedasDrogue(){
     abriuParaquedasDrogue = 1;
 }
 void recupera(){
-    if(descendo && !abriuRedundanciaDrogue && statusAtual == ESTADO_RECUPERANDO){
+    if(descendo && !abriuParaquedasDrogue && statusAtual == ESTADO_RECUPERANDO){
         abreParaquedasDrogue();
     }
-    if(descendo && !abriuRedundanciaMain && statusAtual == ESTADO_RECUPERANDOMAIN){
+    if(descendo && !abreParaquedasMain && statusAtual == ESTADO_RECUPERAMAIN){
         abreParaquedasMain();
         ledcAttachPin(PINO_BUZZER, 1);
         digitalWrite(PINO_LED, HIGH);

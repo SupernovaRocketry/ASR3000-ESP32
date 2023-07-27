@@ -23,8 +23,8 @@
 
 
 // A FAZER
-// USAR BIBLIOTECA MPU (SETAR EM 16Gs)  
-// COMBINAR TASKS DE I2C (MPU E BMP)
+// USAR BIBLIOTECA MPU (SETAR EM 16Gs) feito 
+// COMBINAR TASKS DE I2C (MPU E BMP) feito
 // REMOVER FUNÇÕES DESNECESSÁRIAS (QUE SÓ APARECEM 1 VEZ NO CÓDIGO
 // OTIMIZAÇÃO: VER QUESTÃO DE TIPO DE VARIÁVEIS
 // COLOCAR #ifdef SERIAL_DEBUG antes de QUALQUER serial (inclusive inicialização) e #endif depois
@@ -36,8 +36,9 @@
 //DEFINIR MÉTODO
 //DEFINIR PARÂMETROS DE ACIONAMENTO
 // NA INICIALIZAÇÃO, CALIBRAR SENSORES E DETERMINAR ALTITUDE INICIAL
-
-
+// Determinar questão dos remove before flight
+// Determinar questão do acionamento redundante
+// Determinar questão da leitura de dados, 100 vezes e grava?
 
 
 
@@ -48,6 +49,10 @@ Adafruit_BMP280 bmp;
 double pressao_atual;
 double altitude_atual;
 double temperatura_atual;
+double altitude_anterior = 0;
+double tempo_anterior = 0;
+double velocidade_atual=0;
+
 
 // variáveis do sensor MPU6050
 int MPU = 0x68;
@@ -55,6 +60,9 @@ Adafruit_MPU6050 mpu;
 int AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
 
 // variáveis do GPS
+//pinos do GPS. Estão em INT pois SoftwareSerial gpsSerial(RXPin, TXPin) só aceita INT como parâmetro, #define não funcionou
+int RXPin = 16;
+int TXPin = 17;
 int GPSBaud = 9600;
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(RXPin, TXPin);
@@ -102,9 +110,11 @@ String string_dados_sd;
 int pressure_values[100] = {};
 int temperature_values[100] = {};
 int altitude_values[100] = {};
+double velocidade_values[100] = {};
 int pressure_values_size = sizeof(pressure_values) / sizeof(pressure_values[0]);
 int temperature_values_size = sizeof(temperature_values) / sizeof(temperature_values[0]);
 int altitude_values_size = sizeof(altitude_values) / sizeof(altitude_values[0]);
+int velocidade_values_size = sizeof(velocidade_values) / sizeof(velocidade_values[0]);
 
 // listas dos valores do acelerômetro e giroscópio
 int AcX_values[100] = {};
@@ -148,8 +158,12 @@ void task_i2c_sensores(void *pvParameters)
         pressao_atual = bmp.readPressure();
         temperatura_atual = bmp.readTemperature();
         altitude_atual = bmp.readAltitude();
+        tempo_atual=millis();
+        velocidade_atual = (altitude_atual - altitude_anterior)/(tempo_atual - tempo_anterior);
+        altitude_anterior = altitude_atual;
+        tempo_anterior = tempo_atual;
         #ifdef SERIAL_DEBUG
-                data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25);
+                data_line = "Altitude atual: " + String(altitude_atual) + "| Temperatura: " + String(temperatura_atual) + " | Pressão: " + String(pressao_atual / 1013.25)+ " | Velocidade: " + String(velocidade_atual);
                 Serial.println(data_line);
         #endif
         sensors_event_t a, g, temp;
@@ -160,11 +174,10 @@ void task_i2c_sensores(void *pvParameters)
         GyX_atual = g.gyro.x;
         GyY_atual = g.gyro.y;
         GyZ_atual = g.gyro.z;
-
-
         altitude_values[contador_i2c] = altitude_atual;
         temperature_values[contador_i2c] = temperatura_atual;
         pressure_values[contador_i2c] = pressao_atual / P0;
+        velocidade_values[contador_i2c] = velocidade_atual;
         AcX_values[contador_i2c] = AcX_atual;
         AcY_values[contador_i2c] = AcY_atual;
         AcZ_values[contador_i2c] = AcZ_atual;

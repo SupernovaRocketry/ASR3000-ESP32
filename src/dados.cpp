@@ -55,6 +55,7 @@ extern String string_dados_sd;
 extern int pressure_values[100];
 extern int temperature_values[100];
 extern int altitude_values[100];
+extern double velocidade_values[100];
 extern int AcX_values[100];
 extern int AcY_values[100];
 extern int AcZ_values[100];
@@ -68,6 +69,7 @@ extern double longitude_values[100];
 extern int pressure_values_size;
 extern int temperature_values_size;
 extern int altitude_values_size;
+extern int velocidade_values_size;
 extern int AcX_values_size;
 extern int AcY_values_size;
 extern int AcZ_values_size;
@@ -80,41 +82,41 @@ extern int latitude_values_size;
 extern int longitude_values_size;
 
 // função que recolhe os dados do sensor e recebe como parâmetro o objeto da classe Adafruit_BMP280
-void sensor_bmp(Adafruit_BMP280& sensor)
-{
-    pressao_atual = sensor.readPressure();
-    temperatura_atual = sensor.readTemperature();
-    altitude_atual = sensor.readAltitude();
-}
+// void sensor_bmp(Adafruit_BMP280& sensor)
+// {
+//     pressao_atual = sensor.readPressure();
+//     temperatura_atual = sensor.readTemperature();
+//     altitude_atual = sensor.readAltitude();
+// }
 
-void sensor_mpu()
-{
-  Wire.beginTransmission(MPU);
-  Wire.write(0x3B);
-  Wire.endTransmission(0);
-  Wire.requestFrom(MPU, 14, 1);
-  AcX_atual = Wire.read() << 8 | Wire.read();
-  AcY_atual = Wire.read() << 8 | Wire.read();
-  AcZ_atual = Wire.read() << 8 | Wire.read();
-  // Tmp = Wire.read() << 8 | Wire.read();
-  GyX_atual = Wire.read() << 8 | Wire.read();
-  GyY_atual = Wire.read() << 8 | Wire.read();
-  GyZ_atual = Wire.read() << 8 | Wire.read();
-  Serial.print(" AcX = ");
-  Serial.print(AcX_atual);
-  Serial.print(" | AcY = ");
-  Serial.print(AcY_atual);
-  Serial.print(" | AcZ = ");
-  Serial.print(AcZ_atual);
-  // Serial.print(" | Tmp = ");
-  // Serial.print(Tmp / 340.00 + 36.53);
-  Serial.print(" | GyX = ");
-  Serial.print(GyX_atual);
-  Serial.print(" | GyY = ");
-  Serial.print(GyY_atual);
-  Serial.print(" | GyZ = ");
-  Serial.println(GyZ_atual);
-}
+// void sensor_mpu()
+// {
+//   Wire.beginTransmission(MPU);
+//   Wire.write(0x3B);
+//   Wire.endTransmission(0);
+//   Wire.requestFrom(MPU, 14, 1);
+//   AcX_atual = Wire.read() << 8 | Wire.read();
+//   AcY_atual = Wire.read() << 8 | Wire.read();
+//   AcZ_atual = Wire.read() << 8 | Wire.read();
+//   // Tmp = Wire.read() << 8 | Wire.read();
+//   GyX_atual = Wire.read() << 8 | Wire.read();
+//   GyY_atual = Wire.read() << 8 | Wire.read();
+//   GyZ_atual = Wire.read() << 8 | Wire.read();
+//   Serial.print(" AcX = ");
+//   Serial.print(AcX_atual);
+//   Serial.print(" | AcY = ");
+//   Serial.print(AcY_atual);
+//   Serial.print(" | AcZ = ");
+//   Serial.print(AcZ_atual);
+//   // Serial.print(" | Tmp = ");
+//   // Serial.print(Tmp / 340.00 + 36.53);
+//   Serial.print(" | GyX = ");
+//   Serial.print(GyX_atual);
+//   Serial.print(" | GyY = ");
+//   Serial.print(GyY_atual);
+//   Serial.print(" | GyZ = ");
+//   Serial.println(GyZ_atual);
+// }
 
 void sensor_GPS()
 {
@@ -188,6 +190,7 @@ void grava_SD(fs :: FS &fs , const char * path)
     memset(pressure_values, 0, sizeof(pressure_values));
     memset(temperature_values, 0, sizeof(temperature_values));
     memset(pressure_values, 0, sizeof(altitude_values));
+    memset(velocidade_values, 0, sizeof(velocidade_values));
     memset(AcX_values, 0, sizeof(AcX_values));
     memset(AcY_values, 0, sizeof(AcY_values));
     memset(AcZ_values, 0, sizeof(AcZ_values));
@@ -206,19 +209,19 @@ void grava_SD(fs :: FS &fs , const char * path)
 }
 
 
-void envia_LoRa()
-{
-  LoRa.beginPacket();
-  LoRa.write(destination);       // Adiciona o endereco de destino
-  LoRa.write(localAddress);
-  LoRa.write(msgCount);  
-  LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
-  LoRa.print(string_dados_lora);          // Vetor da mensagem
-  msgCount++;                    // Contador do numero de mensagnes enviadas
-  LoRa.endPacket();
+// void envia_LoRa()
+// {
+//   LoRa.beginPacket();
+//   LoRa.write(destination);       // Adiciona o endereco de destino
+//   LoRa.write(localAddress);
+//   LoRa.write(msgCount);  
+//   LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
+//   LoRa.print(string_dados_lora);          // Vetor da mensagem
+//   msgCount++;                    // Contador do numero de mensagnes enviadas
+//   LoRa.endPacket();
 
-  Serial.println(" Enviando os dados ao LoRa");
-  string_dados_lora = "";
-  msgCount++;   
-  vTaskDelay(1000);
-}
+//   Serial.println(" Enviando os dados ao LoRa");
+//   string_dados_lora = "";
+//   msgCount++;   
+//   vTaskDelay(1000);
+// }
