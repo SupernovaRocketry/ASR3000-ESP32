@@ -78,6 +78,10 @@ byte msgCount = 0;        // Contador de mensagens enviadas
 byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0 xFF envia para todos devices )
 String string_dados_lora;
 
+//variaveis do sd
+File arquivoLog;
+SPIClass spi;
+
 //Variáveis de dados
 double alturaInicial = 0;
 double alturaMinima;
@@ -86,16 +90,18 @@ double alturaMaxima =  0;
 // variáveis de controle
 unsigned long millisRecMain = 2000000;
 unsigned long millisRecDrogue = 1000000;
+int n = 0;
 bool gravando = false;
 bool abriuParaquedasMain = false;
 bool abriuParaquedasDrogue = false;
 bool abriuRedundanciaMain = false;
 bool abriuRedundanciaDrogue = false;
 char erro = false;
-char  statusAtual;
+char  statusAtual='\0';
 bool estado;
 bool descendo = false;
 bool subindo = false;
+char nomeConcat[16]; //nome do arquivo
 // contadores
 
 // mover contadores pra antes do while (1) da respectiva task
@@ -185,6 +191,7 @@ void task_i2c_sensores(void *pvParameters)
         GyX_values[contador_i2c] = GyX_atual;
         GyY_values[contador_i2c] = GyY_atual;
         GyZ_values[contador_i2c] = GyZ_atual;
+        contador_i2c++;
       }
     }
     contador_i2c = 0;
@@ -291,16 +298,16 @@ void setup()
   digitalWrite(REC_MAIN, LOW); //inicializa em baixa 
   digitalWrite(REC_DROGUE, LOW);
 
-  ledcAttachPin(PINO_BUZZER, 0);
+  digitalWrite(PINO_BUZZER, 0);
 
   erro='\0';
   //Inicialização do SD
   #ifdef SERIAL_DEBUG
     Serial.println("Inicializando o cartão SD...");
   #endif
-  SPIClass spi = SPIClass(HSPI);                  // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
+  spi = SPIClass(HSPI);                  // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
   spi.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN); // inicia a conexão spi
-  while(!SD.begin(CS_PIN, spi, 80000000)) // verifica se o cartão sd foi encontrado através da conexão CS do SPI
+  if(!SD.begin(CS_PIN,spi)) // verifica se o cartão sd foi encontrado através da conexão CS do SPI
   {
     erro = ERRO_SD;
     #ifdef SERIAL_DEBUG
@@ -360,18 +367,37 @@ void setup()
   if(!erro){
     #ifdef SERIAL_DEBUG
       Serial.println("Todos os sensores foram inicializados com sucesso.");
+      Serial.println(statusAtual);
+      Serial.println(erro); 
     #endif
     statusAtual = ESTADO_ESPERA;
-    ledcAttachPin(PINO_BUZZER, 1);
+    digitalWrite(PINO_BUZZER, 1);
     vTaskDelay(1000/ portTICK_PERIOD_MS);
-    ledcAttachPin(PINO_BUZZER, 0);
+    digitalWrite(PINO_BUZZER, 0);
+
+    int n = 1;
+    bool parar = false;
+    while (!parar)
+    {
+      #ifdef DEBUG_TEMP
+            Serial.println("não deveria estar aqui com o sd ligado");
+      #endif
+      sprintf(nomeConcat, "/log%d.txt", n);
+      if (SD.exists(nomeConcat))
+        n++;
+      else
+        parar = true;
+    }
+
+    arquivoLog = SD.open(nomeConcat, FILE_WRITE);
+    arquivoLog.println("tempo;altitude;temperatura;pressão;acelx;acely;acelz;girosX;girosY;girosZ;data;tempogps;lat;long");
+    
   }
   else{
     #ifdef SERIAL_DEBUG
       Serial.print("Altímetro com erro de inicialização código:");
       Serial.println(erro);
     #endif
-    statusAtual = erro;
   }
 
   xTaskCreate(task_i2c_sensores, "task bmp", 3000, NULL, 1, NULL);         // cria a task que trata os dados

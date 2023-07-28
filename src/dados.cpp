@@ -80,7 +80,8 @@ extern int data_values_size;
 extern int tempo_values_size;
 extern int latitude_values_size;
 extern int longitude_values_size;
-
+extern File arquivoLog;
+extern char nomeConcat[16];
 // função que recolhe os dados do sensor e recebe como parâmetro o objeto da classe Adafruit_BMP280
 // void sensor_bmp(Adafruit_BMP280& sensor)
 // {
@@ -146,11 +147,9 @@ void sensor_GPS()
 void grava_SD(fs :: FS &fs , const char * path)
 {
   contador ++;
-  File file = fs.open(path, FILE_APPEND);
 
-  if(file)
-  {
-    for(int i = 0; i < pressure_values_size; i++)
+  arquivoLog = SD.open(nomeConcat, FILE_APPEND);
+  for(int i = 0; i < pressure_values_size; i++)
     {
       string_dados_sd += millis();
       string_dados_sd += ",";
@@ -180,9 +179,10 @@ void grava_SD(fs :: FS &fs , const char * path)
       string_dados_sd += ",";
       string_dados_sd += longitude_values[i];
       
-      file.println(string_dados_sd);
+      arquivoLog.println(string_dados_sd);
     }
-    file.close();
+    arquivoLog.close();
+
     string_dados_lora = string_dados_sd;
     string_dados_sd = "";
 
@@ -201,13 +201,7 @@ void grava_SD(fs :: FS &fs , const char * path)
     memset(tempo_values, 0, sizeof(tempo_values));
     memset(latitude_values, 0, sizeof(latitude_values));
     memset(longitude_values, 0, sizeof(longitude_values));
-  }
-  else
-  {
-    Serial.println("Falha ao acessar o arquivo.");
-  }
 }
-
 
 // void envia_LoRa()
 // {
