@@ -45,5 +45,5 @@ void recupera(){
         abreParaquedasMain();
         ledcAttachPin(PINO_BUZZER, 1);
         digitalWrite(PINO_LED, HIGH);
-    }
+    };
 }

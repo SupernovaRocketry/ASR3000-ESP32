@@ -7,6 +7,8 @@
 
 // RXPin e TXPin do GPS são 16 e 17 respectivamente, estão declarados no Main porque não pode usar #define Gps só aceita int 
 //Colocando aqui o int, quando chamasse o include ia haver multiplas declarações da variavel
+
+
 #define SERIAL_DEBUG
 
 //pinos do LoRa

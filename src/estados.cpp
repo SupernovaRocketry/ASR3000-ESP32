@@ -69,7 +69,7 @@ void checaCondicoes() {
             statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue 
         }
 
-        if(altitude_atual + THRESHOLD_DESCIDA < ALTURA_MAIN && descendo){
+        if(altitude_atual + THRESHOLD_DESCIDA < (ALTURA_MAIN + alturaMinima) && descendo){
             statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
         }
     }

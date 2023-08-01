@@ -62,10 +62,10 @@ extern int AcZ_values[100];
 extern int GyX_values[100];
 extern int GyY_values[100];
 extern int GyZ_values[100];
-extern uint32_t data_values[100];
-extern uint32_t tempo_values[100];
-extern double latitude_values[100];
-extern double longitude_values[100];
+extern uint32_t data_value;
+extern uint32_t tempo_value;
+extern double latitude_value;
+extern double longitude_value;
 extern int pressure_values_size;
 extern int temperature_values_size;
 extern int altitude_values_size;
@@ -121,25 +121,26 @@ extern char nomeConcat[16];
 
 void sensor_GPS()
 {
-  if(gps.time.isValid()&&gps.date.isValid())
-  {
+   if(gps.time.isValid()&&gps.date.isValid())
+   {
     tempo_atual = gps.time.value();
     data_atual = gps.date.value();
-  }
-
+   }
+   else
+   {
+     Serial.println("Tempo e data não detectados");
+   }
   if(gps.location.isValid())
   {
     latitude_atual = gps.location.lat();
     longitude_atual = gps.location.lng();
-    Serial.println(gps.location.lat()); // IMPRIME NA SERIAL O VALOR DA LATIDUE LIDA
-    Serial.println(gps.location.lng()); // IMPRIME NA SERIAL O VALOR DA LONGITUDE LIDA
 
   }
-  if(millis() > 5000 && gps.charsProcessed() < 10) 
+  else
   {
-    Serial.println("Sinal GPS não detectado");
-    while (true) delay(10);
+    Serial.println("Latitude e longitude não detectados");
   }
+
 }
 
 
@@ -171,13 +172,13 @@ void grava_SD(fs :: FS &fs , const char * path)
       string_dados_sd += ",";
       string_dados_sd += GyZ_values[i];
       string_dados_sd += ",";
-      string_dados_sd += data_values[i];
+      string_dados_sd += data_value;
       string_dados_sd += ",";
-      string_dados_sd += tempo_values[i];
+      string_dados_sd += tempo_value;
       string_dados_sd += ",";
-      string_dados_sd += latitude_values[i];
+      string_dados_sd += latitude_value;
       string_dados_sd += ",";
-      string_dados_sd += longitude_values[i];
+      string_dados_sd += longitude_value;
       
       arquivoLog.println(string_dados_sd);
     }
@@ -197,11 +198,7 @@ void grava_SD(fs :: FS &fs , const char * path)
     memset(GyX_values, 0, sizeof(GyX_values));
     memset(GyY_values, 0, sizeof(GyY_values));
     memset(GyZ_values, 0, sizeof(GyZ_values));
-    memset(data_values, 0, sizeof(data_values));
-    memset(tempo_values, 0, sizeof(tempo_values));
-    memset(latitude_values, 0, sizeof(latitude_values));
-    memset(longitude_values, 0, sizeof(longitude_values));
-}
+  }
 
 // void envia_LoRa()
 // {
