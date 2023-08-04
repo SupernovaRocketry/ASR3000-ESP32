@@ -49,4 +49,7 @@
 #define ESTADO_RECUPERAMAIN 'm'
 #define ESTADO_ESPERA 'e'
 
+
+#define QUEUE_LENGTH 10
+
 #endif
