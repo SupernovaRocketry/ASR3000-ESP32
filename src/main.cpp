@@ -1,51 +1,39 @@
 // Inclusão das bibliotecas utilizadas
 #include <iostream>
-#include <Arduino.h>           // permite o C++ compilar códigos para arduino/esp32
-#include "SD.h"                // biblioteca que proporciona o manuseamento do cartão SD
-#include "FS.h"                // biblioteca que auxilia no manuseamento do cartão SD
-#include <SPI.h>               // biblioteca que realiza a conexão SPI
-#include <Adafruit_BMP280.h>   // biblioteca do sensor BMP280
-#include <Wire.h>              // Na vdd eu n sei mto pq que eu usei isso, deve ser dependência do SPI ou do ADAFRUIT NÃO, É DO I2C
-#include "freertos/FreeRTOS.h" // OS para realizar o multitasking
-#include "freertos/task.h"     // biblioteca que proporciona a criação e manuseamento das Tasks
-#include "freertos/queue.h"    // biblioteca que proporciona a criação e manuseamento das filas
-#include <TinyGPS++.h>         // biblioteca do GPS
-#include <SoftwareSerial.h>    // usa no gps
-#include <LoRa.h>              // lora
+#include <Arduino.h>           // Permite o uso da interface Arduino IDE para programar o ESP32
+#include "SD.h"                // Biblioteca que proporciona o manuseamento do cartão SD
+#include "FS.h"                // Biblioteca que auxilia no manuseamento do cartão SD
+#include <SPI.h>               // Biblioteca que realiza a conexão SPI
+#include <Adafruit_BMP280.h>   // Biblioteca do sensor BMP280
+#include <Wire.h>              // Comunicação I2C
+#include "freertos/task.h"     // Biblioteca que proporciona a criação e manuseamento das Tasks
+#include "freertos/queue.h"    // Biblioteca que proporciona a criação e manuseamento das filas
+#include <TinyGPS++.h>         // Biblioteca do GPS
+#include <SoftwareSerial.h>    // Biblioteca utilizada pelo GPS
+#include <LoRa.h>              
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 
 // headers
 #include <main.h>
-#include <dados.h>
 #include <defs.h>
 #include <recuperacao.h>
 #include <estados.h>
 
 
 // A FAZER
-// USAR BIBLIOTECA MPU (SETAR EM 16Gs) feito 
-// COMBINAR TASKS DE I2C (MPU E BMP) feito
-// REMOVER FUNÇÕES DESNECESSÁRIAS (QUE SÓ APARECEM 1 VEZ NO CÓDIGO
 // OTIMIZAÇÃO: VER QUESTÃO DE TIPO DE VARIÁVEIS
-// COLOCAR #ifdef SERIAL_DEBUG antes de QUALQUER serial (inclusive inicialização) e #endif depois
-// VER SE É NECESSÁRIO USAR SEMÁFORO EM OUTRAS TASKS
-// VERIFICAR USO DE BIBLIOTECAS EM OUTROS ARQUIVOS
-
-
 //ACIONAMENTO
 //DEFINIR MÉTODO
 //DEFINIR PARÂMETROS DE ACIONAMENTO
 // NA INICIALIZAÇÃO, CALIBRAR SENSORES E DETERMINAR ALTITUDE INICIAL
-// Determinar questão dos remove before flight
 // Determinar questão do acionamento redundante
 
-
+// Filas para comunicação dos dados entre as tasks
 QueueHandle_t SDdataQueue;
 QueueHandle_t LORAdataQueue;
-// #define SERIAL_DEBUG
 
-// variáveis dos dados do sensor BMP280
+// Variáveis dos dados do sensor BMP280
 Adafruit_BMP280 bmp;
 double pressao_atual;
 double altitude_atual;
@@ -56,13 +44,13 @@ double tempo_vel=0;
 double velocidade_atual=0;
 
 
-// variáveis do sensor MPU6050
+// Variáveis do sensor MPU6050
 int MPU = 0x68;
 Adafruit_MPU6050 mpu;
 int AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
 
 // variáveis do GPS
-//pinos do GPS. Estão em INT pois SoftwareSerial gpsSerial(RXPin, TXPin) só aceita INT como parâmetro, #define não funcionou
+//Pinos do GPS. Estão em INT pois SoftwareSerial gpsSerial(RXPin, TXPin) só aceita INT como parâmetro, #define não funcionou
 int RXPin = 16;
 int TXPin = 17;
 int GPSBaud = 9600;
@@ -73,15 +61,15 @@ uint32_t tempo_atual = 0;
 double latitude_atual = 0;
 double longitude_atual = 0;
 
-// variaveis do lora
+// Variaveis do lora
 byte localAddress = 0xBB; // Endereco deste dispositivo LoRa
 byte msgCount = 0;        // Contador de mensagens enviadas
 byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0 xFF envia para todos devices )
 String string_dados_lora="";
 
-//variaveis do sd
+// Variaveis do sd
 File arquivoLog;
-//Variáveis de dados
+// Variáveis de dados
 double alturaInicial = 0;
 double alturaMinima;
 double alturaMaxima =  0;
@@ -101,23 +89,18 @@ bool estado;
 bool descendo = false;
 bool subindo = false;
 char nomeConcat[16]; //nome do arquivo
-// contadores
-
-// mover contadores pra antes do while (1) da respectiva task
-uint32_t contador = 0;
-uint32_t contador_sd= 0;
-uint32_t contador_lora= 0;
 
 // string que recebe cada linha nova de dados que vai ser gravada no arquivo .txt no cartão SD
 String string_dados_sd;
+SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
 
-// listas dos valores de hora, data, latitude e longitude do GPS
+// Valores de hora, data, latitude e longitude do GPS
 uint32_t data_value;
 uint32_t tempo_value;
 double latitude_value;
 double longitude_value;
 
-SemaphoreHandle_t xMutex; // objeto do semáforo das tasks
+SemaphoreHandle_t xMutex;  // objeto do semáforo das tasks
 
 void aquisicaoDados(void *pvParameters)
 {
@@ -128,7 +111,7 @@ void aquisicaoDados(void *pvParameters)
   {
     // BMP
     #ifdef SERIAL_DEBUG
-          Serial.println("Task dos sensores BMP e MPU iniciada.");
+          //Serial.println("Task dos sensores BMP e MPU iniciada.");
     #endif
     pressao_atual = bmp.readPressure();
     temperatura_atual = bmp.readTemperature();
@@ -247,27 +230,29 @@ void aquisicaoDados(void *pvParameters)
 
 void task_gravaSD(void *pvParameters) // task do cartão SD
 {
+  uint32_t contador_sd= 0;
   while (1)
   {
       if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
       {
-        Serial.println(uxQueueSpacesAvailable(SDdataQueue));
-        // grava_SD(SD); //N PRECISA
         if(uxQueueSpacesAvailable(SDdataQueue) == 0)
         {
           
           while(contador_sd< QUEUE_LENGTH){
             xQueueReceive(SDdataQueue, &string_dados_sd, portMAX_DELAY);
-            
-            // arquivoLog = SD.open(nomeConcat, FILE_APPEND);
-            // arquivoLog.println(string_dados_sd);
+            arquivoLog = SD.open(nomeConcat, FILE_APPEND);
+            Serial.println(" Appending to file : ");
+            arquivoLog.println(string_dados_sd);
             #ifdef SERIAL_DEBUG
+              
               Serial.println("Dados gravados no cartão SD:");
               Serial.println(string_dados_sd);
+              
             #endif
-            // arquivoLog.close(); 
+            arquivoLog.close(); 
             contador_sd++;
             string_dados_lora=string_dados_sd;
+
           }
           contador_sd=0;
         }
@@ -281,6 +266,7 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
 
 void task_envia_lora(void *pvParameters) //
 {
+  uint32_t contador_lora= 0;
   while (1)
   {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
@@ -331,6 +317,7 @@ void setup()
   pinMode(PINO_BOTAO,INPUT);
   pinMode(PINO_BUZZER,OUTPUT);
   pinMode(PINO_LED,OUTPUT);
+  
   //iniciando recuperação
   pinMode(REC_MAIN, OUTPUT); //declara o pino do rec principal como output 
   pinMode(REC_DROGUE, OUTPUT); 
@@ -344,7 +331,7 @@ void setup()
   #ifdef SERIAL_DEBUG
     Serial.println("Inicializando o cartão SD...");
   #endif
-  SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
+  
   spi.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN); // inicia a conexão spi
   #ifdef SERIAL_DEBUG
     Serial.println("Conexão SPI iniciada.");
@@ -435,6 +422,7 @@ void setup()
 
     arquivoLog = SD.open(nomeConcat, FILE_WRITE);
     arquivoLog.println("tempo;altitude;temperatura;pressão;acelx;acely;acelz;girosX;girosY;girosZ;data;tempogps;lat;long");
+    Serial.println(nomeConcat);
     arquivoLog.close();
   }
   else{
@@ -446,7 +434,7 @@ void setup()
 
   xQueueReset(SDdataQueue);
   xQueueReset(LORAdataQueue);
-  xTaskCreatePinnedToCore(aquisicaoDados, "task aquicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
+  xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
 
