@@ -342,10 +342,9 @@ void checaCondicoes(void *pvParameters){
             statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
         }
     }
-    #ifdef SERIAL_DEBUG
-        Serial.println("Chequei as condições!");
-    #endif
+   
   }
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 void verificaInicio(void *pvParameters){
@@ -359,6 +358,7 @@ void verificaInicio(void *pvParameters){
       }
     }
   }
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 void setup()
 {
