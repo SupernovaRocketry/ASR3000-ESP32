@@ -24,7 +24,7 @@
 #define PINO_LED 33
 #define REC_MAIN 25
 #define REC_DROGUE 26
-
+#define RBF 27
 // pinos SPI do módulo SD
 #define SCK_PIN 14
 #define MISO_PIN 12

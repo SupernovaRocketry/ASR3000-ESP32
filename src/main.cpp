@@ -95,7 +95,6 @@ String string_dados_sd;
 SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
 
 // Valores de hora, data, latitude e longitude do GPS
-uint32_t data_value;
 uint32_t tempo_value;
 double latitude_value;
 double longitude_value;
@@ -141,20 +140,19 @@ void aquisicaoDados(void *pvParameters)
             data_line = "AcX: " + String(AcX_atual) + "| AcY: " + String(AcY_atual) + " | AcZ: " + String(AcZ_atual) + " | GyX: " + String(GyX_atual) + " | GyY: " + String(GyY_atual) + " | GyZ: " + String(GyZ_atual);
             Serial.println(data_line);
     #endif
-  /*
+
     // GPS  
     if(gpsSerial.available() > 0)
     {
       if (gps.encode(gpsSerial.read()))
       {
-          if(gps.time.isValid()&&gps.date.isValid())
+          if(gps.time.isValid())
           {
             tempo_atual = gps.time.value();
-            data_atual = gps.date.value();
           }
           else
           {
-            Serial.println("Tempo e data não detectados");
+            Serial.println("Tempo não detectado");
           }
           if(gps.location.isValid())
           {
@@ -167,12 +165,10 @@ void aquisicaoDados(void *pvParameters)
             Serial.println("Latitude e longitude não detectados");
           }
 
-          data_value = data_atual;
           tempo_value = tempo_atual;
           latitude_value = latitude_atual;
           longitude_value = longitude_atual;
           #ifdef SERIAL_DEBUG
-                        Serial.println(data_atual);
                         Serial.println(tempo_atual);
                         Serial.println(latitude_atual);
                         Serial.println(longitude_atual);
@@ -183,7 +179,6 @@ void aquisicaoDados(void *pvParameters)
         Serial.println("Sinal GPS não detectado");
       }
     }
-    */
     string_dados_sd = "";
     string_dados_sd += tempo_vel;
     string_dados_sd += ",";
@@ -204,8 +199,6 @@ void aquisicaoDados(void *pvParameters)
     string_dados_sd += GyY_atual;
     string_dados_sd += ",";
     string_dados_sd += GyZ_atual;
-    string_dados_sd += ",";
-    string_dados_sd += data_value;
     string_dados_sd += ",";
     string_dados_sd += tempo_value;
     string_dados_sd += ",";
@@ -241,7 +234,7 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
           while(contador_sd< QUEUE_LENGTH){
             xQueueReceive(SDdataQueue, &string_dados_sd, portMAX_DELAY);
             arquivoLog = SD.open(nomeConcat, FILE_APPEND);
-            Serial.println(" Appending to file : ");
+            
             arquivoLog.println(string_dados_sd);
             #ifdef SERIAL_DEBUG
               
@@ -301,7 +294,72 @@ void task_envia_lora(void *pvParameters) //
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
   
+void checaCondicoes(void *pvParameters){
+  while(1){
+    if (statusAtual== ESTADO_GRAVANDO){
+        if (!gravando) {
+            alturaMinima = altitude_atual; // altura mínima registrada no momento de retirada do RBF
+            gravando = true;
+        }
+        //alturaMinima
+        if ((altitude_atual < alturaMinima)){
+            alturaMinima = altitude_atual;
+        }
 
+        //alturaMaxima
+        if (!subindo){
+            alturaMaxima = 0;
+        }
+
+        //controle de subida
+        if ((altitude_atual > alturaMinima + THRESHOLD_SUBIDA) && !subindo ){
+            subindo = true; // Saiu da base e está subindo
+        }
+
+        //primeira referencia de altura maxima
+        if (subindo && (alturaMaxima == 0)){
+            alturaMaxima = altitude_atual;
+        }
+
+        //verificar a altura máxima
+        if ((altitude_atual > alturaMaxima) && subindo){
+            alturaMaxima =  altitude_atual;
+        }
+
+        //Controle de descida, usando um threshold para evitar disparos não
+        //intencionais
+        if ((altitude_atual + THRESHOLD_DESCIDA < alturaMaxima) && subindo) {
+            descendo = true;
+            subindo = false;
+            statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue 
+            //Teste usando led
+            digitalWrite(PINO_LED, HIGH);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            digitalWrite(PINO_LED, LOW);
+        }
+
+        if(altitude_atual + THRESHOLD_DESCIDA < (ALTURA_MAIN + alturaMinima) && descendo){
+            statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
+        }
+    }
+    #ifdef SERIAL_DEBUG
+        Serial.println("Chequei as condições!");
+    #endif
+  }
+}
+
+void verificaInicio(void *pvParameters){
+  while(1){
+    if (statusAtual == ESTADO_ESPERA){
+      if (digitalRead(RBF) == HIGH){
+        statusAtual = ESTADO_GRAVANDO;
+        #ifdef SERIAL_DEBUG
+          Serial.println("Remove before flight retirado!");
+        #endif
+      }
+    }
+  }
+}
 void setup()
 {
   xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
@@ -434,10 +492,14 @@ void setup()
 
   xQueueReset(SDdataQueue);
   xQueueReset(LORAdataQueue);
+
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
+  xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 1, NULL, 0);      // cria a task que checa as condições de voo
+  xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
+
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
-
+  
   vTaskStartScheduler();
 }
 
