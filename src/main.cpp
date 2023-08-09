@@ -35,13 +35,13 @@ QueueHandle_t LORAdataQueue;
 
 // Variáveis dos dados do sensor BMP280
 Adafruit_BMP280 bmp;
-double pressao_atual;
-double altitude_atual;
-double temperatura_atual;
-double altitude_anterior = 0;
-double tempo_anterior = 0;
-double tempo_vel=0;
-double velocidade_atual=0;
+float pressao_atual;
+float altitude_atual;
+float temperatura_atual;
+float altitude_anterior = 0;
+float tempo_anterior = 0;
+float tempo_vel=0;
+float velocidade_atual=0;
 
 
 // Variáveis do sensor MPU6050
@@ -58,8 +58,8 @@ TinyGPSPlus gps;
 SoftwareSerial gpsSerial(RXPin, TXPin);
 uint32_t data_atual = 0;
 uint32_t tempo_atual = 0;
-double latitude_atual = 0;
-double longitude_atual = 0;
+float latitude_atual = 0;
+float longitude_atual = 0;
 
 // Variaveis do lora
 byte localAddress = 0xBB; // Endereco deste dispositivo LoRa
@@ -70,9 +70,9 @@ String string_dados_lora="";
 // Variaveis do sd
 File arquivoLog;
 // Variáveis de dados
-double alturaInicial = 0;
-double alturaMinima;
-double alturaMaxima =  0;
+float alturaInicial = 0;
+float alturaMinima;
+float alturaMaxima =  0;
 
 // variáveis de controle
 unsigned long millisRecMain = 2000000;
@@ -96,8 +96,8 @@ SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para lidar co
 
 // Valores de hora, data, latitude e longitude do GPS
 uint32_t tempo_value;
-double latitude_value;
-double longitude_value;
+float latitude_value;
+float longitude_value;
 
 SemaphoreHandle_t xMutex;  // objeto do semáforo das tasks
 
@@ -106,8 +106,8 @@ void aquisicaoDados(void *pvParameters)
   String data_line;
   while(1)
   {
-  if(xSemaphoreTake(xMutex, portMAX_DELAY)==pdTRUE)
-  {
+     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
+      {
     // BMP
     #ifdef SERIAL_DEBUG
           //Serial.println("Task dos sensores BMP e MPU iniciada.");
@@ -140,7 +140,7 @@ void aquisicaoDados(void *pvParameters)
             data_line = "AcX: " + String(AcX_atual) + "| AcY: " + String(AcY_atual) + " | AcZ: " + String(AcZ_atual) + " | GyX: " + String(GyX_atual) + " | GyY: " + String(GyY_atual) + " | GyZ: " + String(GyZ_atual);
             Serial.println(data_line);
     #endif
-
+    
     // GPS  
     if(gpsSerial.available() > 0)
     {
@@ -206,22 +206,23 @@ void aquisicaoDados(void *pvParameters)
     string_dados_sd += ",";
     string_dados_sd += longitude_value;
     string_dados_lora=string_dados_sd;
+    
     if(uxQueueSpacesAvailable(SDdataQueue) != 0)
     {
-    xQueueSend(SDdataQueue, &string_dados_sd, portMAX_DELAY);
+      xQueueSend(SDdataQueue, &string_dados_sd, portMAX_DELAY);
     }
     if(uxQueueSpacesAvailable(LORAdataQueue) != 0)
     {
-    xQueueSend(LORAdataQueue, &string_dados_lora, portMAX_DELAY);
+       xQueueSend(LORAdataQueue, &string_dados_lora, portMAX_DELAY);
     }
     xSemaphoreGive(xMutex);
-    }
+  }
   
   }
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
-void task_gravaSD(void *pvParameters) // task do cartão SD
+ void task_gravaSD(void *pvParameters) // task do cartão SD
 {
   uint32_t contador_sd= 0;
   while (1)
@@ -232,42 +233,40 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
         {
           
           while(contador_sd< QUEUE_LENGTH){
-            xQueueReceive(SDdataQueue, &string_dados_sd, portMAX_DELAY);
+            xQueueReceive(SDdataQueue, &string_dados_sd, 0);
             arquivoLog = SD.open(nomeConcat, FILE_APPEND);
-            
             arquivoLog.println(string_dados_sd);
-            #ifdef SERIAL_DEBUG
-              
-              Serial.println("Dados gravados no cartão SD:");
+             #ifdef SERIAL_DEBUG   
+               Serial.println("Dados gravados no cartão SD:");
               Serial.println(string_dados_sd);
-              
-            #endif
+             #endif
             arquivoLog.close(); 
             contador_sd++;
-            string_dados_lora=string_dados_sd;
-
           }
           contador_sd=0;
+          
         }
          //VER SOBRE COLOCAR DENTRO DOS IFS OU FORA NAS OUTRAS TASKS
          xSemaphoreGive(xMutex);
       }
       
   }
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
 void task_envia_lora(void *pvParameters) //
 {
   uint32_t contador_lora= 0;
+  
   while (1)
   {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
     {   
-      if(uxQueueSpacesAvailable(LORAdataQueue) == 0)
+      if(uxQueueMessagesWaiting(LORAdataQueue) == QUEUE_LENGTH)
       {
-        while(contador_lora< QUEUE_LENGTH){
-          xQueueReceive(LORAdataQueue, &string_dados_lora, portMAX_DELAY);
+        
+        while(contador_lora < QUEUE_LENGTH){
+          xQueueReceive(LORAdataQueue, &string_dados_lora, 0);
           LoRa.beginPacket();
           LoRa.write(destination);       // Adiciona o endereco de destino
           LoRa.write(localAddress);
@@ -276,14 +275,16 @@ void task_envia_lora(void *pvParameters) //
           LoRa.print(string_dados_lora);          // Vetor da mensagem
           msgCount++;     // Contador do numero de mensagnes enviadas
           LoRa.endPacket();
+          
           #ifdef SERIAL_DEBUG
             Serial.println("Dados enviados pelo LoRa:");
             Serial.println(string_dados_lora);
           #endif
-          string_dados_lora = "";
-          msgCount++; 
           contador_lora++;
+           
+          vTaskDelay(100 / portTICK_PERIOD_MS);
         }
+        
         contador_lora=0;
       }      
       xSemaphoreGive(xMutex);
@@ -291,7 +292,7 @@ void task_envia_lora(void *pvParameters) //
     
   }
   
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(500/portTICK_PERIOD_MS);
 }
   
 void checaCondicoes(void *pvParameters){
@@ -344,7 +345,7 @@ void checaCondicoes(void *pvParameters){
     }
    
   }
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(1000 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
 }
 
 void verificaInicio(void *pvParameters){
@@ -479,7 +480,6 @@ void setup()
 
     arquivoLog = SD.open(nomeConcat, FILE_WRITE);
     arquivoLog.println("tempo;altitude;temperatura;pressão;acelx;acely;acelz;girosX;girosY;girosZ;data;tempogps;lat;long");
-    Serial.println(nomeConcat);
     arquivoLog.close();
   }
   else{
@@ -489,12 +489,12 @@ void setup()
     #endif
   }
 
-  xQueueReset(SDdataQueue);
-  xQueueReset(LORAdataQueue);
+  //xQueueReset(SDdataQueue);
+  //xQueueReset(LORAdataQueue);
 
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
-  // xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 1, NULL, 0);      // cria a task que checa as condições de voo
-  // xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
+  xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 1, NULL, 0);      // cria a task que checa as condições de voo
+  xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
 
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
