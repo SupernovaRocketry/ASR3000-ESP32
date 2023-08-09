@@ -92,7 +92,7 @@ char nomeConcat[16]; //nome do arquivo
 
 // string que recebe cada linha nova de dados que vai ser gravada no arquivo .txt no cartão SD
 String string_dados_sd;
-SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para litar com a conexão entre o cartão SD e o ESP32
+SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para lidar com a conexão entre o cartão SD e o ESP32
 
 // Valores de hora, data, latitude e longitude do GPS
 uint32_t tempo_value;
@@ -394,9 +394,8 @@ void setup()
   #ifdef SERIAL_DEBUG
     Serial.println("Conexão SPI iniciada.");
   #endif
-  while(!SD.begin(CS_PIN,spi))// verifica se o cartão sd foi encontrado através da conexão CS do SPI
+  if(!SD.begin(CS_PIN,spi))// verifica se o cartão sd foi encontrado através da conexão CS do SPI
   {
-    return;
      erro = ERRO_SD;
      #ifdef SERIAL_DEBUG
        Serial.println("Falha ao iniciar o cartão SD. Verifique as conexões.");
@@ -494,8 +493,8 @@ void setup()
   xQueueReset(LORAdataQueue);
 
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
-  xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 1, NULL, 0);      // cria a task que checa as condições de voo
-  xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
+  // xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 1, NULL, 0);      // cria a task que checa as condições de voo
+  // xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
 
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
