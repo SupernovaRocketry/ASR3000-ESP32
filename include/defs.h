@@ -50,6 +50,6 @@
 #define ESTADO_ESPERA 'e'
 
 
-#define QUEUE_LENGTH 100
+#define QUEUE_LENGTH 10
 
 #endif

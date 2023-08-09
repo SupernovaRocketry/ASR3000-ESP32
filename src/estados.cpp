@@ -6,10 +6,10 @@
 #include <main.h>
 
 
-extern double altitude_atual;
-extern double alturaInicial;
-extern double alturaMinima;
-extern double alturaMaxima;
+extern float altitude_atual;
+extern float alturaInicial;
+extern float alturaMinima;
+extern float alturaMaxima;
 extern bool gravando;
 extern bool abriuParaquedasMain;
 extern bool abriuParaquedasDrogue;
