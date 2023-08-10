@@ -106,8 +106,6 @@ void aquisicaoDados(void *pvParameters)
   String data_line;
   while(1)
   {
-     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-      {
     // BMP
     #ifdef SERIAL_DEBUG
           //Serial.println("Task dos sensores BMP e MPU iniciada.");
@@ -217,81 +215,63 @@ void aquisicaoDados(void *pvParameters)
     }
     xSemaphoreGive(xMutex);
   }
-  
-  }
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
  void task_gravaSD(void *pvParameters) // task do cartão SD
 {
   uint32_t contador_sd= 0;
+  String data_lineSD;
   while (1)
   {
-      if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-      {
-        if(uxQueueSpacesAvailable(SDdataQueue) == 0)
-        {
-          
-          while(contador_sd< QUEUE_LENGTH){
-            xQueueReceive(SDdataQueue, &string_dados_sd, 0);
-            arquivoLog = SD.open(nomeConcat, FILE_APPEND);
-            arquivoLog.println(string_dados_sd);
-             #ifdef SERIAL_DEBUG   
-               Serial.println("Dados gravados no cartão SD:");
-              Serial.println(string_dados_sd);
-             #endif
-            arquivoLog.close(); 
-            contador_sd++;
-          }
-          contador_sd=0;
-          
-        }
-         //VER SOBRE COLOCAR DENTRO DOS IFS OU FORA NAS OUTRAS TASKS
-         xSemaphoreGive(xMutex);
-      }
+
+    if(uxQueueMessagesWaiting(SDdataQueue) > SD_MAX)
+    {
       
+      while(contador_sd< SD_MAX){
+        xQueueReceive(SDdataQueue, &string_dados_sd, 0);
+        data_lineSD += string_dados_sd;
+        data_lineSD += "\n";
+        contador_sd++;
+      }
+      arquivoLog = SD.open(nomeConcat, FILE_APPEND);
+      arquivoLog.println(data_lineSD);
+        #ifdef SERIAL_DEBUG   
+          Serial.println("Dados gravados no cartão SD:");
+        Serial.println(data_lineSD);
+        #endif
+      arquivoLog.close(); 
+      contador_sd=0;
+      
+    }
   }
   vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
 void task_envia_lora(void *pvParameters) //
 {
-  uint32_t contador_lora= 0;
   
   while (1)
-  {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-    {   
-      if(uxQueueMessagesWaiting(LORAdataQueue) == QUEUE_LENGTH)
-      {
-        
-        while(contador_lora < QUEUE_LENGTH){
-          xQueueReceive(LORAdataQueue, &string_dados_lora, 0);
-          LoRa.beginPacket();
-          LoRa.write(destination);       // Adiciona o endereco de destino
-          LoRa.write(localAddress);
-          LoRa.write(msgCount);  
-          LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
-          LoRa.print(string_dados_lora);          // Vetor da mensagem
-          msgCount++;     // Contador do numero de mensagnes enviadas
-          LoRa.endPacket();
-          
-          #ifdef SERIAL_DEBUG
-            Serial.println("Dados enviados pelo LoRa:");
-            Serial.println(string_dados_lora);
-          #endif
-          contador_lora++;
-           
-          vTaskDelay(100 / portTICK_PERIOD_MS);
-        }
-        
-        contador_lora=0;
-      }      
-      xSemaphoreGive(xMutex);
-    }
-    
+  { 
+    if(uxQueueMessagesWaiting(LORAdataQueue) >LORA_MAX)
+    {
+      
+      xQueueReceive(LORAdataQueue, &string_dados_lora, 0);
+      LoRa.beginPacket();
+      LoRa.write(destination);       // Adiciona o endereco de destino
+      LoRa.write(localAddress);
+      LoRa.write(msgCount);  
+      LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
+      LoRa.print(string_dados_lora);          // Vetor da mensagem
+      msgCount++;     // Contador do numero de mensagnes enviadas
+      LoRa.endPacket();
+      
+      #ifdef SERIAL_DEBUG
+        Serial.println("Dados enviados pelo LoRa:");
+        Serial.println(string_dados_lora);
+      #endif
+    }   
   }
-  
   vTaskDelay(500/portTICK_PERIOD_MS);
 }
   
@@ -364,8 +344,8 @@ void verificaInicio(void *pvParameters){
 void setup()
 {
   xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
-  SDdataQueue = xQueueCreate(QUEUE_LENGTH,sizeof(String));
-  LORAdataQueue = xQueueCreate(QUEUE_LENGTH,sizeof(String));
+  SDdataQueue = xQueueCreate(SD_QUEUE_LENGTH,sizeof(String));
+  LORAdataQueue = xQueueCreate(LORA_QUEUE_LENGTH,sizeof(String));
 
 
   #ifdef SERIAL_DEBUG

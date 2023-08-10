@@ -50,6 +50,9 @@
 #define ESTADO_ESPERA 'e'
 
 
-#define QUEUE_LENGTH 10
+#define SD_QUEUE_LENGTH 100
+#define SD_MAX 10
+#define LORA_QUEUE_LENGTH 10
+#define LORA_MAX 5
 
 #endif
