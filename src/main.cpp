@@ -133,7 +133,7 @@ void aquisicaoDados(void *pvParameters)
       {
           if(gps.time.isValid())
           {
-            tempo_atual = gps.time.value();
+            tempo_atual = gps.time.value(); //fuso horário -3
           }
           else
           {
@@ -198,7 +198,7 @@ void aquisicaoDados(void *pvParameters)
     }
     xSemaphoreGive(xMutex);
   }
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
  void task_gravaSD(void *pvParameters) // task do cartão SD
@@ -228,7 +228,7 @@ void aquisicaoDados(void *pvParameters)
       
     }
   }
-  vTaskDelay(500 / portTICK_PERIOD_MS);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 void task_envia_lora(void *pvParameters) //
@@ -257,11 +257,19 @@ void task_envia_lora(void *pvParameters) //
       #endif
     }   
   }
-  vTaskDelay(500/portTICK_PERIOD_MS);
+  
 }
   
 void checaCondicoes(void *pvParameters){
-  while(1){
+  while(1){                                                                       
+    if (statusAtual == ESTADO_ESPERA){
+      if (digitalRead(RBF) == LOW){
+        statusAtual = ESTADO_GRAVANDO;
+        #ifdef SERIAL_DEBUG
+          Serial.println("Remove before flight retirado!");
+        #endif
+      }
+    }
     if (statusAtual== ESTADO_GRAVANDO){
         if (!gravando) {
             alturaMinima = altitude_atual; // altura mínima registrada no momento de retirada do RBF
@@ -308,24 +316,18 @@ void checaCondicoes(void *pvParameters){
             statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
         }
     }
-   
+    Serial.println("chequei");
   }
-  vTaskDelay(1000 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
+  
+  vTaskDelay(1500 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
 }
 
-void verificaInicio(void *pvParameters){
-  while(1){
-    if (statusAtual == ESTADO_ESPERA){
-      if (digitalRead(RBF) == HIGH){
-        statusAtual = ESTADO_GRAVANDO;
-        #ifdef SERIAL_DEBUG
-          Serial.println("Remove before flight retirado!");
-        #endif
-      }
-    }
-  }
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
-}
+// void verificaInicio(void *pvParameters){
+//   while(1){ 
+    
+//   }
+//   vTaskDelay(1000 / portTICK_PERIOD_MS);
+// }
 void setup()
 {
   xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
@@ -341,6 +343,8 @@ void setup()
   pinMode(PINO_BOTAO,INPUT);
   pinMode(PINO_BUZZER,OUTPUT);
   pinMode(PINO_LED,OUTPUT);
+  pinMode(RBF,INPUT_PULLUP);
+
   
   //iniciando recuperação
   pinMode(REC_MAIN, OUTPUT); //declara o pino do rec principal como output 
@@ -458,8 +462,8 @@ void setup()
   //xQueueReset(LORAdataQueue);
 
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
-  xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 1, NULL, 0);      // cria a task que checa as condições de voo
-  xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
+  xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 0, NULL, 0);      // cria a task que checa as condições de voo
+  // xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
 
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
@@ -469,5 +473,5 @@ void setup()
 
 void loop()
 {
-  vTaskDelay(100/ portTICK_PERIOD_MS);
+  vTaskDelay(1000/portTICK_PERIOD_MS);
 }
