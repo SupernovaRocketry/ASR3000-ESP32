@@ -312,7 +312,7 @@ void checaCondicoes(void *pvParameters){
         if ((altitude_atual + THRESHOLD_DESCIDA < alturaMaxima) && subindo) {
             descendo = true;
             subindo = false;
-            statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue 
+            statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue ,não sei se precisa mudar o status talvez para saber o exato momento de ativação
             //Teste usando led
             digitalWrite(PINO_LED, HIGH);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
