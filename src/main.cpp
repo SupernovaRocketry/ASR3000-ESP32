@@ -17,12 +17,8 @@
 // headers
 #include <main.h>
 #include <defs.h>
-#include <recuperacao.h>
-#include <estados.h>
-
 
 // A FAZER
-// OTIMIZAÇÃO: VER QUESTÃO DE TIPO DE VARIÁVEIS
 //ACIONAMENTO
 //DEFINIR MÉTODO
 //DEFINIR PARÂMETROS DE ACIONAMENTO
@@ -33,11 +29,9 @@
 QueueHandle_t SDdataQueue;
 QueueHandle_t LORAdataQueue;
 
-// Variáveis dos dados do sensor BMP280
+// Variáveis globais dos dados do sensor BMP280 
 Adafruit_BMP280 bmp;
-float pressao_atual;
 float altitude_atual;
-float temperatura_atual;
 float altitude_anterior = 0;
 float tempo_anterior = 0;
 float tempo_vel=0;
@@ -47,7 +41,6 @@ float velocidade_atual=0;
 // Variáveis do sensor MPU6050
 int MPU = 0x68;
 Adafruit_MPU6050 mpu;
-int AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
 
 // variáveis do GPS
 //Pinos do GPS. Estão em INT pois SoftwareSerial gpsSerial(RXPin, TXPin) só aceita INT como parâmetro, #define não funcionou
@@ -56,15 +49,8 @@ int TXPin = 17;
 int GPSBaud = 9600;
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(RXPin, TXPin);
-uint32_t data_atual = 0;
-uint32_t tempo_atual = 0;
-float latitude_atual = 0;
-float longitude_atual = 0;
 
 // Variaveis do lora
-byte localAddress = 0xBB; // Endereco deste dispositivo LoRa
-byte msgCount = 0;        // Contador de mensagens enviadas
-byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0 xFF envia para todos devices )
 String string_dados_lora="";
 
 // Variaveis do sd
@@ -94,16 +80,17 @@ char nomeConcat[16]; //nome do arquivo
 String string_dados_sd;
 SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para lidar com a conexão entre o cartão SD e o ESP32
 
-// Valores de hora, data, latitude e longitude do GPS
-uint32_t tempo_value;
-float latitude_value;
-float longitude_value;
-
 SemaphoreHandle_t xMutex;  // objeto do semáforo das tasks
 
 void aquisicaoDados(void *pvParameters)
 {
+  float pressao_atual,temperatura_atual;
+  int AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
   String data_line;
+  uint32_t tempo_atual = 0;
+  float latitude_atual = 0;
+  float longitude_atual = 0;
+
   while(1)
   {
     // BMP
@@ -162,10 +149,6 @@ void aquisicaoDados(void *pvParameters)
           {
             Serial.println("Latitude e longitude não detectados");
           }
-
-          tempo_value = tempo_atual;
-          latitude_value = latitude_atual;
-          longitude_value = longitude_atual;
           #ifdef SERIAL_DEBUG
                         Serial.println(tempo_atual);
                         Serial.println(latitude_atual);
@@ -198,11 +181,11 @@ void aquisicaoDados(void *pvParameters)
     string_dados_sd += ",";
     string_dados_sd += GyZ_atual;
     string_dados_sd += ",";
-    string_dados_sd += tempo_value;
+    string_dados_sd += tempo_atual;
     string_dados_sd += ",";
-    string_dados_sd += latitude_value;
+    string_dados_sd += latitude_atual;
     string_dados_sd += ",";
-    string_dados_sd += longitude_value;
+    string_dados_sd += longitude_atual;
     string_dados_lora=string_dados_sd;
     
     if(uxQueueSpacesAvailable(SDdataQueue) != 0)
@@ -250,7 +233,9 @@ void aquisicaoDados(void *pvParameters)
 
 void task_envia_lora(void *pvParameters) //
 {
-  
+  byte localAddress = 0xBB; // Endereco deste dispositivo LoRa
+  byte msgCount = 0;        // Contador de mensagens enviadas
+  byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0xFF envia para todos devices )
   while (1)
   { 
     if(uxQueueMessagesWaiting(LORAdataQueue) >LORA_MAX)
