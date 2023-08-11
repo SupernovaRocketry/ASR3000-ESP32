@@ -13,6 +13,7 @@
 #include <LoRa.h>              
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
+#include <ArduinoJson.h>       // Biblioteca que traduz os dados para Json
 
 // headers
 #include <main.h>
@@ -24,6 +25,7 @@
 //DEFINIR PARÂMETROS DE ACIONAMENTO
 // NA INICIALIZAÇÃO, CALIBRAR SENSORES E DETERMINAR ALTITUDE INICIAL
 // Determinar questão do acionamento redundante
+// ver se JsonObject Acelerometro = doc.createNestedObject("Acelerometro"); é necessário rodar toda vez ou apenas no início do código
 
 // Filas para comunicação dos dados entre as tasks
 QueueHandle_t SDdataQueue;
@@ -81,6 +83,8 @@ String string_dados_sd;
 SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para lidar com a conexão entre o cartão SD e o ESP32
 
 SemaphoreHandle_t xMutex;  // objeto do semáforo das tasks
+
+StaticJsonDocument<384> doc; // objeto json que recebe os dados para serem gravados no Cartão SD e no LoRa, usando 384 bytes (pode ser ajustado)
 
 void aquisicaoDados(void *pvParameters)
 {
@@ -187,14 +191,34 @@ void aquisicaoDados(void *pvParameters)
     string_dados_sd += ",";
     string_dados_sd += longitude_atual;
     string_dados_lora=string_dados_sd;
+
+    doc["Altitude"] = altitude_atual;
+    doc["Latitude"] = latitude_atual;
+    doc["Longitude"] = longitude_atual;
+    doc["Principal Paraquedas Estabilizador"] = true;
+    doc["Redundancia Paraquedas Estabilizador"] = true;
+    doc["Comercial Paraquedas Estabilizador"] = true;
+    doc["Principal Paraquedas Principal"] = true;
+    doc["Comercial Paraquedas Principal"] = true;
+    
+    JsonObject Acelerometro = doc.createNestedObject("Acelerometro"); // cria uma chave dentro da key "Acelerometro" do json, com subchaves "x", "y" e "z"
+    Acelerometro["x"] = AcX_atual;
+    Acelerometro["y"] = AcY_atual;
+    Acelerometro["z"] = AcZ_atual;
+    
+    JsonObject Giroscopio = doc.createNestedObject("Giroscopio"); // cria uma chave dentro da key "Giroscopio" do json, com subchaves "x", "y" e "z"
+    Giroscopio["x"] = GyX_atual;
+    Giroscopio["y"] = GyY_atual;
+    Giroscopio["z"] = GyZ_atual;
+    doc["RSSI"] = 0;
     
     if(uxQueueSpacesAvailable(SDdataQueue) != 0)
     {
-      xQueueSend(SDdataQueue, &string_dados_sd, portMAX_DELAY);
+      xQueueSend(SDdataQueue, &doc, portMAX_DELAY);
     }
     if(uxQueueSpacesAvailable(LORAdataQueue) != 0)
     {
-       xQueueSend(LORAdataQueue, &string_dados_lora, portMAX_DELAY);
+       xQueueSend(LORAdataQueue, &doc, portMAX_DELAY);
     }
     xSemaphoreGive(xMutex);
   }
@@ -212,16 +236,18 @@ void aquisicaoDados(void *pvParameters)
     {
       
       while(contador_sd< SD_MAX){
-        xQueueReceive(SDdataQueue, &string_dados_sd, 0);
-        data_lineSD += string_dados_sd;
-        data_lineSD += "\n";
+        xQueueReceive(SDdataQueue, &doc, 0);
+        //data_lineSD += string_dados_sd;
+        //data_lineSD += "\n";
         contador_sd++;
       }
       arquivoLog = SD.open(nomeConcat, FILE_APPEND);
-      arquivoLog.println(data_lineSD);
+      //arquivoLog.println(data_lineSD); //é possível manter um arquivoLog.println() em BRANCO para pular linha a cada gravação
+      serializeJson(doc, arquivoLog); // funciona como um arquivoLog.print(doc), NÃO PULA LINHA IGUAL .println, ver serializeJsonPretty()
         #ifdef SERIAL_DEBUG   
           Serial.println("Dados gravados no cartão SD:");
-        Serial.println(data_lineSD);
+          //Serial.println(data_lineSD);
+          serializeJson(doc, Serial); // funciona como um Serial.print(doc)
         #endif
       arquivoLog.close(); 
       contador_sd=0;
@@ -246,14 +272,17 @@ void task_envia_lora(void *pvParameters) //
       LoRa.write(destination);       // Adiciona o endereco de destino
       LoRa.write(localAddress);
       LoRa.write(msgCount);  
-      LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
-      LoRa.print(string_dados_lora);          // Vetor da mensagem
+      //LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
+      //LoRa.print(string_dados_lora);          // Vetor da mensagem
+      serializeJson(doc, LoRa); // funciona como um LoRa.print(doc)
+      LoRa.write(doc.length()); // Tamanho da mensagem em bytes
       msgCount++;     // Contador do numero de mensagnes enviadas
       LoRa.endPacket();
       
       #ifdef SERIAL_DEBUG
         Serial.println("Dados enviados pelo LoRa:");
-        Serial.println(string_dados_lora);
+        //Serial.println(string_dados_lora);
+        serializeJson(doc, Serial);
       #endif
     }   
   }
