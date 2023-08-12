@@ -84,7 +84,7 @@ SPIClass spi = SPIClass(HSPI);                // cria a classe SPI para lidar co
 
 SemaphoreHandle_t xMutex;  // objeto do semáforo das tasks
 
-StaticJsonDocument<384> doc; // objeto json que recebe os dados para serem gravados no Cartão SD e no LoRa, usando 384 bytes (pode ser ajustado)
+StaticJsonDocument<512> doc; // objeto json que recebe os dados para serem gravados no Cartão SD e no LoRa, usando 384 bytes (pode ser ajustado)
 
 void aquisicaoDados(void *pvParameters)
 {
@@ -196,36 +196,39 @@ void aquisicaoDados(void *pvParameters)
     doc["Latitude"] = latitude_atual;
     doc["Longitude"] = longitude_atual;
     if(statusAtual==ESTADO_RECUPERANDO){
-      doc["Principal Paraquedas Estabilizador"] = true;
-      doc["Redundancia Paraquedas Estabilizador"] = true;
-      doc["Comercial Paraquedas Estabilizador"] = true;
+      doc["PPE"] = true;
     }
     else{
-      doc["Principal Paraquedas Estabilizador"] = false;
-      doc["Redundancia Paraquedas Estabilizador"] = false;
-      doc["Comercial Paraquedas Estabilizador"] = false;
+      doc["PPE"] = false;
+
     }
     if (statusAtual==ESTADO_RECUPERAMAIN)
     {
-      doc["Principal Paraquedas Principal"] = true;
-      doc["Comercial Paraquedas Principal"] = true;
+      doc["PPP"] = true;
     }
     else{
-      doc["Principal Paraquedas Principal"] = false;
-      doc["Comercial Paraquedas Principal"] = false;
+      doc["PPP"] = false;
     }
     
-    JsonObject Acelerometro = doc.createNestedObject("Acelerometro"); // cria uma chave dentro da key "Acelerometro" do json, com subchaves "x", "y" e "z"
-    Acelerometro["x"] = AcX_atual;
-    Acelerometro["y"] = AcY_atual;
-    Acelerometro["z"] = AcZ_atual;
+    // JsonObject Acelerometro = doc.createNestedObject("Acelerometro"); // cria uma chave dentro da key "Acelerometro" do json, com subchaves "x", "y" e "z"
+    // Acelerometro["x"] = AcX_atual;
+    // Acelerometro["y"] = AcY_atual;
+    // Acelerometro["z"] = AcZ_atual;
     
-    JsonObject Giroscopio = doc.createNestedObject("Giroscopio"); // cria uma chave dentro da key "Giroscopio" do json, com subchaves "x", "y" e "z"
-    Giroscopio["x"] = GyX_atual;
-    Giroscopio["y"] = GyY_atual;
-    Giroscopio["z"] = GyZ_atual;
-    doc["RSSI"] = 0;
-    
+    // JsonObject Giroscopio = doc.createNestedObject("Giroscopio"); // cria uma chave dentro da key "Giroscopio" do json, com subchaves "x", "y" e "z"
+    // Giroscopio["x"] = GyX_atual;
+    // Giroscopio["y"] = GyY_atual;
+    // Giroscopio["z"] = GyZ_atual;
+    // doc["RSSI"] = 0;
+    doc["Acelerometro(x)"] = AcX_atual;
+    doc["Acelerometro(y)"] = AcY_atual;
+    doc["Acelerometro(z)"] = AcZ_atual;
+    doc["Giroscopio(x)"] = GyX_atual;
+    doc["Giroscopio(y)"] = GyY_atual;
+    doc["Giroscopio(z)"] = GyZ_atual;
+    doc["Tempo"]= tempo_atual;
+
+
     if(uxQueueSpacesAvailable(SDdataQueue) != 0)
     {
       xQueueSend(SDdataQueue, &doc, portMAX_DELAY);
@@ -277,7 +280,7 @@ void aquisicaoDados(void *pvParameters)
       
     }
   }
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(1500 / portTICK_PERIOD_MS);
 }
 
 void task_envia_lora(void *pvParameters) //
@@ -290,16 +293,14 @@ void task_envia_lora(void *pvParameters) //
     if(uxQueueMessagesWaiting(LORAdataQueue) >LORA_MAX)
     {
       
-      xQueueReceive(LORAdataQueue, &string_dados_lora, 0);
+      xQueueReceive(LORAdataQueue, &doc, 0);
       LoRa.beginPacket();
       LoRa.write(destination);       // Adiciona o endereco de destino
       LoRa.write(localAddress);
-      LoRa.write(msgCount);  
-      //LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
-      //LoRa.print(string_dados_lora);          // Vetor da mensagem
-      LoRa.write(measureJson(doc)); // Tamanho da mensagem em bytes
+      LoRa.write(msgCount); 
+      // LoRa.write(string_dados_lora);     
       serializeJson(doc, LoRa); // funciona como um LoRa.print(doc)
-      
+
       msgCount++;     // Contador do numero de mensagnes enviadas
       LoRa.endPacket();
       
