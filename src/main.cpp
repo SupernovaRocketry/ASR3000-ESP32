@@ -195,11 +195,25 @@ void aquisicaoDados(void *pvParameters)
     doc["Altitude"] = altitude_atual;
     doc["Latitude"] = latitude_atual;
     doc["Longitude"] = longitude_atual;
-    doc["Principal Paraquedas Estabilizador"] = true;
-    doc["Redundancia Paraquedas Estabilizador"] = true;
-    doc["Comercial Paraquedas Estabilizador"] = true;
-    doc["Principal Paraquedas Principal"] = true;
-    doc["Comercial Paraquedas Principal"] = true;
+    if(statusAtual==ESTADO_RECUPERANDO){
+      doc["Principal Paraquedas Estabilizador"] = true;
+      doc["Redundancia Paraquedas Estabilizador"] = true;
+      doc["Comercial Paraquedas Estabilizador"] = true;
+    }
+    else{
+      doc["Principal Paraquedas Estabilizador"] = false;
+      doc["Redundancia Paraquedas Estabilizador"] = false;
+      doc["Comercial Paraquedas Estabilizador"] = false;
+    }
+    if (statusAtual==ESTADO_RECUPERAMAIN)
+    {
+      doc["Principal Paraquedas Principal"] = true;
+      doc["Comercial Paraquedas Principal"] = true;
+    }
+    else{
+      doc["Principal Paraquedas Principal"] = false;
+      doc["Comercial Paraquedas Principal"] = false;
+    }
     
     JsonObject Acelerometro = doc.createNestedObject("Acelerometro"); // cria uma chave dentro da key "Acelerometro" do json, com subchaves "x", "y" e "z"
     Acelerometro["x"] = AcX_atual;
@@ -239,6 +253,15 @@ void aquisicaoDados(void *pvParameters)
         xQueueReceive(SDdataQueue, &doc, 0);
         //data_lineSD += string_dados_sd;
         //data_lineSD += "\n";
+        arquivoLog = SD.open(nomeConcat, FILE_APPEND);
+        //arquivoLog.println(data_lineSD); //é possível manter um arquivoLog.println() em BRANCO para pular linha a cada gravação
+        serializeJson(doc, arquivoLog); // funciona como um arquivoLog.print(doc), NÃO PULA LINHA IGUAL .println, ver serializeJsonPretty()
+          #ifdef SERIAL_DEBUG   
+            Serial.println("Dados gravados no cartão SD:");
+            //Serial.println(data_lineSD);
+            serializeJson(doc, Serial); // funciona como um Serial.print(doc)
+        #endif
+        arquivoLog.close(); 
         contador_sd++;
       }
       arquivoLog = SD.open(nomeConcat, FILE_APPEND);
@@ -274,8 +297,9 @@ void task_envia_lora(void *pvParameters) //
       LoRa.write(msgCount);  
       //LoRa.write(string_dados_lora.length()); // Tamanho da mensagem em bytes
       //LoRa.print(string_dados_lora);          // Vetor da mensagem
+      LoRa.write(measureJson(doc)); // Tamanho da mensagem em bytes
       serializeJson(doc, LoRa); // funciona como um LoRa.print(doc)
-      LoRa.write(doc.length()); // Tamanho da mensagem em bytes
+      
       msgCount++;     // Contador do numero de mensagnes enviadas
       LoRa.endPacket();
       
