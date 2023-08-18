@@ -141,7 +141,9 @@ void aquisicaoDados(void *pvParameters)
           }
           else
           {
+          #ifdef SERIAL_DEBUG
             Serial.println("Tempo não detectado");
+          #endif
           }
           if(gps.location.isValid())
           {
@@ -151,7 +153,9 @@ void aquisicaoDados(void *pvParameters)
           }
           else
           {
+          #ifdef SERIAL_DEBUG
             Serial.println("Latitude e longitude não detectados");
+          #endif
           }
           #ifdef SERIAL_DEBUG
                         Serial.println(tempo_atual);
@@ -161,7 +165,10 @@ void aquisicaoDados(void *pvParameters)
         }
       if (gps.charsProcessed() < 10)
       {
-        Serial.println("Sinal GPS não detectado");
+        #ifdef SERIAL_DEBUG
+          Serial.println("Sinal GPS não detectado");
+        #endif
+        
       }
     }
     string_dados_sd = "";
@@ -200,7 +207,6 @@ void aquisicaoDados(void *pvParameters)
     }
     else{
       doc["PPE"] = false;
-
     }
     if (statusAtual==ESTADO_RECUPERAMAIN)
     {
@@ -220,15 +226,18 @@ void aquisicaoDados(void *pvParameters)
     // Giroscopio["y"] = GyY_atual;
     // Giroscopio["z"] = GyZ_atual;
     // doc["RSSI"] = 0;
-    doc["Acelerometro(x)"] = AcX_atual;
-    doc["Acelerometro(y)"] = AcY_atual;
-    doc["Acelerometro(z)"] = AcZ_atual;
+    doc["Acel(x)"] = AcX_atual;
+    doc["Acel(y)"] = AcY_atual;
+    doc["Acel(z)"] = AcZ_atual;
     doc["Giroscopio(x)"] = GyX_atual;
     doc["Giroscopio(y)"] = GyY_atual;
     doc["Giroscopio(z)"] = GyZ_atual;
     doc["Tempo"]= tempo_atual;
 
 
+    #ifdef LORA_DEBUG
+        Serial.println("Altitude enviada: " + String(altitude_atual));
+    #endif
     if(uxQueueSpacesAvailable(SDdataQueue) != 0)
     {
       xQueueSend(SDdataQueue, &doc, portMAX_DELAY);
@@ -252,7 +261,7 @@ void aquisicaoDados(void *pvParameters)
     if(uxQueueMessagesWaiting(SDdataQueue) > SD_MAX)
     {
       
-      while(contador_sd< SD_MAX){
+      while(contador_sd< SD_MAX ){
         xQueueReceive(SDdataQueue, &doc, 0);
         //data_lineSD += string_dados_sd;
         //data_lineSD += "\n";
@@ -295,19 +304,20 @@ void task_envia_lora(void *pvParameters) //
       
       xQueueReceive(LORAdataQueue, &doc, 0);
       LoRa.beginPacket();
-      LoRa.write(destination);       // Adiciona o endereco de destino
-      LoRa.write(localAddress);
-      LoRa.write(msgCount); 
+      // LoRa.write(destination);       // Adiciona o endereco de destino
+      // LoRa.write(localAddress);
+      // LoRa.write(msgCount); 
       // LoRa.write(string_dados_lora);     
       serializeJson(doc, LoRa); // funciona como um LoRa.print(doc)
 
-      msgCount++;     // Contador do numero de mensagnes enviadas
+      //msgCount++;     // Contador do numero de mensagnes enviadas
       LoRa.endPacket();
       
-      #ifdef SERIAL_DEBUG
+      #ifdef LORA_DEBUG
         Serial.println("Dados enviados pelo LoRa:");
         //Serial.println(string_dados_lora);
         serializeJson(doc, Serial);
+        Serial.println(millis());
       #endif
     }   
   }
@@ -317,15 +327,20 @@ void task_envia_lora(void *pvParameters) //
 void checaCondicoes(void *pvParameters){
   while(1){                                                                       
     if (statusAtual == ESTADO_ESPERA){
-      if (digitalRead(RBF) == LOW){
+      Serial.println(altitude_atual);
+      if (digitalRead(PINO_BOTAO) == LOW){
         statusAtual = ESTADO_GRAVANDO;
-        #ifdef SERIAL_DEBUG
-          Serial.println("Remove before flight retirado!");
+        #ifdef ACIONAMENTO_DEBUG
+        
+        Serial.println("Remove before flight retirado!");
         #endif
+         
+          
       }
+      
     }
     if (statusAtual== ESTADO_GRAVANDO){
-        if (!gravando) {
+        if (!gravando && (altitude_atual!=0)) {
             alturaMinima = altitude_atual; // altura mínima registrada no momento de retirada do RBF
             gravando = true;
         }
@@ -338,10 +353,21 @@ void checaCondicoes(void *pvParameters){
         if (!subindo){
             alturaMaxima = 0;
         }
-
+        #ifdef ACIONAMENTO_DEBUG
+              Serial.print("atitude atual:");
+              Serial.println(altitude_atual);
+              Serial.print("altura minima:");
+              Serial.println(alturaMinima);
+            #endif
         //controle de subida
         if ((altitude_atual > alturaMinima + THRESHOLD_SUBIDA) && !subindo ){
             subindo = true; // Saiu da base e está subindo
+            #ifdef ACIONAMENTO_DEBUG
+              Serial.print("atitude atual:");
+              Serial.println(altitude_atual);
+              Serial.print("altura minima:");
+              Serial.println(alturaMinima);
+            #endif
         }
 
         //primeira referencia de altura maxima
@@ -356,21 +382,60 @@ void checaCondicoes(void *pvParameters){
 
         //Controle de descida, usando um threshold para evitar disparos não
         //intencionais
+        #ifdef ACIONAMENTO_DEBUG
+              Serial.print("Altura Maxima:");
+              Serial.println(alturaMaxima);
+              Serial.print("Altura Minima:");
+              Serial.println(alturaMinima);
+              Serial.print("Altura Atual:");
+              Serial.println(altitude_atual);
+              Serial.print("Subindo:");
+              Serial.println(subindo);
+              Serial.print("Descendo:");
+              Serial.println(descendo);
+              Serial.print("Status Atual:");
+              Serial.println(statusAtual);
+              Serial.print("gravando:");
+              Serial.println(gravando);
+         #endif
         if ((altitude_atual + THRESHOLD_DESCIDA < alturaMaxima) && subindo) {
             descendo = true;
             subindo = false;
             statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue ,não sei se precisa mudar o status talvez para saber o exato momento de ativação
             //Teste usando led
-            digitalWrite(PINO_LED, HIGH);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            digitalWrite(PINO_LED, LOW);
+            digitalWrite(REC_DROGUE, HIGH);
+            #ifdef ACIONAMENTO_DEBUG
+              Serial.print("Altura Maxima:");
+              Serial.println(alturaMaxima);
+              Serial.print("Altura Minima:");
+              Serial.println(alturaMinima);
+              Serial.print("Altura Atual:");
+              Serial.println(altitude_atual);
+              Serial.print("Subindo:");
+              Serial.println(subindo);
+              Serial.print("Descendo:");
+              Serial.println(descendo);
+              Serial.print("Status Atual:");
+              Serial.println(statusAtual);
+              Serial.print("gravando:");
+              Serial.println(gravando);
+            #endif
+          
+            
         }
 
         if(altitude_atual + THRESHOLD_DESCIDA < (ALTURA_MAIN + alturaMinima) && descendo){
             statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
         }
+        
     }
-    Serial.println("chequei");
+    #ifdef ACIONAMENTO_DEBUG
+              
+              // Serial.print("SUBINDO:");
+              // Serial.println(subindo);
+          
+      #endif
+    //Serial.println("chequei");
   }
   
   vTaskDelay(1500 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
@@ -388,8 +453,13 @@ void setup()
   SDdataQueue = xQueueCreate(SD_QUEUE_LENGTH,sizeof(String));
   LORAdataQueue = xQueueCreate(LORA_QUEUE_LENGTH,sizeof(String));
 
-
+  #ifdef LORA_DEBUG
+    Serial.begin(115200);
+  #endif
   #ifdef SERIAL_DEBUG
+    Serial.begin(115200);
+  #endif
+  #ifdef ACIONAMENTO_DEBUG
     Serial.begin(115200);
   #endif
 
@@ -407,7 +477,7 @@ void setup()
   digitalWrite(REC_DROGUE, LOW);
 
   digitalWrite(PINO_BUZZER, 0);
-
+  digitalWrite(PINO_LED, 0);
   erro='\0';
   //Inicialização do SD
   #ifdef SERIAL_DEBUG
@@ -467,7 +537,7 @@ void setup()
   #endif
   //PESQUISAR SOBRE MODOS E OPÇÕES DO BMP
   //Verificar necessidade do setSampling
-  bmp.setSampling(Adafruit_BMP280::MODE_FORCED,     /* Operating Mode. */
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
