@@ -171,33 +171,6 @@ void aquisicaoDados(void *pvParameters)
         
       }
     }
-    string_dados_sd = "";
-    string_dados_sd += tempo_vel;
-    string_dados_sd += ",";
-    string_dados_sd += altitude_atual;
-    string_dados_sd += ",";
-    string_dados_sd += temperatura_atual;
-    string_dados_sd += ",";
-    string_dados_sd += pressao_atual;
-    string_dados_sd += ",";
-    string_dados_sd += AcX_atual;
-    string_dados_sd += ",";
-    string_dados_sd += AcY_atual;
-    string_dados_sd += ",";
-    string_dados_sd += AcZ_atual;
-    string_dados_sd += ",";
-    string_dados_sd += GyX_atual;
-    string_dados_sd += ",";
-    string_dados_sd += GyY_atual;
-    string_dados_sd += ",";
-    string_dados_sd += GyZ_atual;
-    string_dados_sd += ",";
-    string_dados_sd += tempo_atual;
-    string_dados_sd += ",";
-    string_dados_sd += latitude_atual;
-    string_dados_sd += ",";
-    string_dados_sd += longitude_atual;
-    string_dados_lora=string_dados_sd;
 
     doc["Altitude"] = altitude_atual;
     doc["Latitude"] = latitude_atual;
@@ -304,13 +277,7 @@ void task_envia_lora(void *pvParameters) //
       
       xQueueReceive(LORAdataQueue, &doc, 0);
       LoRa.beginPacket();
-      // LoRa.write(destination);       // Adiciona o endereco de destino
-      // LoRa.write(localAddress);
-      // LoRa.write(msgCount); 
-      // LoRa.write(string_dados_lora);     
       serializeJson(doc, LoRa); // funciona como um LoRa.print(doc)
-
-      //msgCount++;     // Contador do numero de mensagnes enviadas
       LoRa.endPacket();
       
       #ifdef LORA_DEBUG
@@ -429,27 +396,12 @@ void checaCondicoes(void *pvParameters){
         }
         
     }
-    #ifdef ACIONAMENTO_DEBUG
-              
-              // Serial.print("SUBINDO:");
-              // Serial.println(subindo);
-          
-      #endif
-    //Serial.println("chequei");
   }
-  
   vTaskDelay(1500 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
 }
-
-// void verificaInicio(void *pvParameters){
-//   while(1){ 
-    
-//   }
-//   vTaskDelay(1000 / portTICK_PERIOD_MS);
-// }
 void setup()
 {
-  xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
+  // xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
   SDdataQueue = xQueueCreate(SD_QUEUE_LENGTH,sizeof(String));
   LORAdataQueue = xQueueCreate(LORA_QUEUE_LENGTH,sizeof(String));
 
@@ -572,7 +524,7 @@ void setup()
     }
 
     arquivoLog = SD.open(nomeConcat, FILE_WRITE);
-    arquivoLog.println("tempo;altitude;temperatura;pressão;acelx;acely;acelz;girosX;girosY;girosZ;data;tempogps;lat;long");
+    arquivoLog.println(" ");
     arquivoLog.close();
   }
   else{
@@ -582,13 +534,8 @@ void setup()
     #endif
   }
 
-  //xQueueReset(SDdataQueue);
-  //xQueueReset(LORAdataQueue);
-
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0);         // cria a task que trata os dados
   xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 0, NULL, 0);      // cria a task que checa as condições de voo
-  // xTaskCreatePinnedToCore(verificaInicio, "task verificaInicio", 3000, NULL, 1, NULL, 0);      // cria a task que verifica o início do voo
-
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
   
