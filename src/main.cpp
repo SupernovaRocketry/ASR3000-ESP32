@@ -149,6 +149,9 @@ void aquisicaoDados(void *pvParameters)
           {
             latitude_atual = gps.location.lat();
             longitude_atual = gps.location.lng();
+            #ifdef ACIONAMENTO_DEBUG
+              Serial.println("Latitude:" + String(latitude_atual, 6) + " Longitude:" + String(longitude_atual, 6));
+            #endif
 
           }
           else
@@ -189,16 +192,6 @@ void aquisicaoDados(void *pvParameters)
       doc["PPP"] = false;
     }
     
-    // JsonObject Acelerometro = doc.createNestedObject("Acelerometro"); // cria uma chave dentro da key "Acelerometro" do json, com subchaves "x", "y" e "z"
-    // Acelerometro["x"] = AcX_atual;
-    // Acelerometro["y"] = AcY_atual;
-    // Acelerometro["z"] = AcZ_atual;
-    
-    // JsonObject Giroscopio = doc.createNestedObject("Giroscopio"); // cria uma chave dentro da key "Giroscopio" do json, com subchaves "x", "y" e "z"
-    // Giroscopio["x"] = GyX_atual;
-    // Giroscopio["y"] = GyY_atual;
-    // Giroscopio["z"] = GyZ_atual;
-    // doc["RSSI"] = 0;
     doc["Acel(x)"] = AcX_atual;
     doc["Acel(y)"] = AcY_atual;
     doc["Acel(z)"] = AcZ_atual;
@@ -313,6 +306,7 @@ void checaCondicoes(void *pvParameters){
         }
         //alturaMinima
         if ((altitude_atual < alturaMinima)){
+            vTaskDelay(10 / portTICK_PERIOD_MS);
             alturaMinima = altitude_atual;
         }
 
@@ -339,11 +333,13 @@ void checaCondicoes(void *pvParameters){
 
         //primeira referencia de altura maxima
         if (subindo && (alturaMaxima == 0)){
+
             alturaMaxima = altitude_atual;
         }
 
         //verificar a altura máxima
         if ((altitude_atual > alturaMaxima) && subindo){
+            vTaskDelay(10 / portTICK_PERIOD_MS);
             alturaMaxima =  altitude_atual;
         }
 
@@ -391,8 +387,10 @@ void checaCondicoes(void *pvParameters){
             
         }
 
-        if(altitude_atual + THRESHOLD_DESCIDA < (ALTURA_MAIN + alturaMinima) && descendo){
+        if(altitude_atual < (ALTURA_MAIN + alturaMinima) && descendo){
             statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
+            digitalWrite(REC_DROGUE, HIGH);
+
         }
         
     }
@@ -401,7 +399,7 @@ void checaCondicoes(void *pvParameters){
 }
 void setup()
 {
-  // xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
+  xMutex = xSemaphoreCreateMutex(); // cria o objeto do semáforo xMutex
   SDdataQueue = xQueueCreate(SD_QUEUE_LENGTH,sizeof(String));
   LORAdataQueue = xQueueCreate(LORA_QUEUE_LENGTH,sizeof(String));
 
@@ -493,7 +491,7 @@ void setup()
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+                  Adafruit_BMP280::STANDBY_MS_250); /* Standby time. */
   
   //Inicialização do GPS
   gpsSerial.begin(9600);
@@ -524,7 +522,7 @@ void setup()
     }
 
     arquivoLog = SD.open(nomeConcat, FILE_WRITE);
-    arquivoLog.println(" ");
+    arquivoLog.println("tempo, altitude, velocidade, aceleração, temperatura, pressão, latitude, longitude");
     arquivoLog.close();
   }
   else{
@@ -538,7 +536,6 @@ void setup()
   xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 0, NULL, 0);      // cria a task que checa as condições de voo
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);      // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1); // cria a task que envia os dados pelo LoRa
-  
   vTaskStartScheduler();
 }
 

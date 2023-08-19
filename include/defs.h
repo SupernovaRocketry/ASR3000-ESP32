@@ -35,9 +35,9 @@
 
 #define P0 1013.25 // pressão atmosférica média no nível do mar caso precise, mas o bmp.readAltitude ja possui o parâmetro float seaLevelhPa = 1013.25 na documentação
 
-#define THRESHOLD_DESCIDA 2.0   //em metros
-#define THRESHOLD_SUBIDA 2.0  //em metros
-#define ALTURA_MAIN 500 //em metros
+#define THRESHOLD_DESCIDA 1.0   //em metros
+#define THRESHOLD_SUBIDA 1.0  //em metros
+#define ALTURA_MAIN 2.0 //em metros
 #define ERRO_BMP 'b' //inicializa uma variável de erro para o BMP 
 
 #define ERRO_SD 's' //inicializa uma variável de erro para o leitor SD
