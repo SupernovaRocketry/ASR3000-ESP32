@@ -119,9 +119,9 @@ void aquisicaoDados(void *pvParameters)
     // MPU
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
-    AcX_atual = a.gyro.x;
-    AcY_atual = a.gyro.y;
-    AcZ_atual = a.gyro.z;
+    AcX_atual = a.acceleration.x;
+    AcY_atual = a.acceleration.y;
+    AcZ_atual = a.acceleration.z;
     GyX_atual = g.gyro.x;
     GyY_atual = g.gyro.y;
     GyZ_atual = g.gyro.z;
@@ -287,7 +287,7 @@ void task_envia_lora(void *pvParameters) //
 void checaCondicoes(void *pvParameters){
   while(1){                                                                       
     if (statusAtual == ESTADO_ESPERA){
-      Serial.println(altitude_atual);
+      // Serial.println(altitude_atual);
       if (digitalRead(PINO_BOTAO) == LOW){
         statusAtual = ESTADO_GRAVANDO;
         #ifdef ACIONAMENTO_DEBUG
