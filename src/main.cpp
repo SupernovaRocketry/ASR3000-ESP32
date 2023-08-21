@@ -89,7 +89,7 @@ StaticJsonDocument<512> doc; // objeto json que recebe os dados para serem grava
 void aquisicaoDados(void *pvParameters)
 {
   float pressao_atual,temperatura_atual;
-  int AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
+  float AcX_atual, AcY_atual, AcZ_atual, Tmp, GyX_atual, GyY_atual, GyZ_atual;
   String data_line;
   uint32_t tempo_atual = 0;
   float latitude_atual = 0;
@@ -175,9 +175,10 @@ void aquisicaoDados(void *pvParameters)
       }
     }
 
-    doc["Altitude"] = altitude_atual;
-    doc["Latitude"] = latitude_atual;
-    doc["Longitude"] = longitude_atual;
+    doc["Alt"] = altitude_atual;
+    doc["Vel"] = velocidade_atual;
+    doc["Lat"] = latitude_atual;
+    doc["Long"] = longitude_atual;
     if(statusAtual==ESTADO_RECUPERANDO){
       doc["PPE"] = true;
     }
@@ -191,14 +192,15 @@ void aquisicaoDados(void *pvParameters)
     else{
       doc["PPP"] = false;
     }
-    
-    doc["Acel(x)"] = AcX_atual;
-    doc["Acel(y)"] = AcY_atual;
-    doc["Acel(z)"] = AcZ_atual;
-    doc["Giroscopio(x)"] = GyX_atual;
-    doc["Giroscopio(y)"] = GyY_atual;
-    doc["Giroscopio(z)"] = GyZ_atual;
-    doc["Tempo"]= tempo_atual;
+    // duas casas decimais
+    doc["Acel(x)"] = roundf(AcX_atual*100)/100.0;
+    doc["Acel(y)"] = roundf(AcY_atual*100)/100.0;
+    doc["Acel(z)"] = roundf(AcZ_atual*100)/100.0;
+    doc["Gyro(x)"] = roundf(GyX_atual*57.296*100)/100.0; //conversão de rad/s para graus/s
+    doc["Gyro(y)"] = roundf(GyY_atual*57.296*100)/100.0;
+    doc["Gyro(z)"] = roundf(GyZ_atual*57.296*100)/100.0;
+    doc["Time"]= tempo_atual;
+    doc["Tmillis"] = tempo_vel;
 
 
     #ifdef LORA_DEBUG
@@ -224,7 +226,7 @@ void aquisicaoDados(void *pvParameters)
   while (1)
   {
 
-    if(uxQueueMessagesWaiting(SDdataQueue) > SD_MAX)
+    if(uxQueueMessagesWaiting(SDdataQueue) > SD_MAX && (statusAtual== ESTADO_GRAVANDO || statusAtual== ESTADO_RECUPERANDO || statusAtual== ESTADO_RECUPERAMAIN))
     {
       
       while(contador_sd< SD_MAX ){
@@ -250,6 +252,7 @@ void aquisicaoDados(void *pvParameters)
           //Serial.println(data_lineSD);
           serializeJson(doc, Serial); // funciona como um Serial.print(doc)
         #endif
+       
       arquivoLog.close(); 
       contador_sd=0;
       
@@ -278,6 +281,10 @@ void task_envia_lora(void *pvParameters) //
         //Serial.println(string_dados_lora);
         serializeJson(doc, Serial);
         Serial.println(millis());
+      #endif
+      #ifdef SUPERVISORIO_DEBUG
+          serializeJson(doc, Serial); // funciona como um Serial.print(doc)
+          Serial.println();
       #endif
     }   
   }
@@ -412,6 +419,9 @@ void setup()
   #ifdef ACIONAMENTO_DEBUG
     Serial.begin(115200);
   #endif
+  #ifdef SUPERVISORIO_DEBUG
+    Serial.begin(115200);
+  #endif
 
   //Inicializando as portas
   pinMode(PINO_BOTAO,INPUT);
@@ -473,7 +483,7 @@ void setup()
   #endif
   mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
   mpu.setGyroRange(MPU6050_RANGE_500_DEG);
-  mpu.setFilterBandwidth(MPU6050_BAND_5_HZ);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
   //Inicialização do BMP280
   while(!bmp.begin(0x76)) {

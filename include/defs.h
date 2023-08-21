@@ -9,10 +9,10 @@
 //Colocando aqui o int, quando chamasse o include ia haver multiplas declarações da variavel
 
 
- #define SERIAL_DEBUG
+ // #define SERIAL_DEBUG
 // #define LORA_DEBUG
 // #define ACIONAMENTO_DEBUG
-
+#define SUPERVISORIO_DEBUG
 //pinos do LoRa
 #define csPin 5  // Chip Select ( Slave Select do protocolo SPI ) do modulo Lora
 #define resetPin 2 // Reset do modulo LoRa
