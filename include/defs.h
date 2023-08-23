@@ -11,8 +11,8 @@
 
  // #define SERIAL_DEBUG
 // #define LORA_DEBUG
-// #define ACIONAMENTO_DEBUG
-#define SUPERVISORIO_DEBUG
+ #define ACIONAMENTO_DEBUG
+//#define SUPERVISORIO_DEBUG
 //pinos do LoRa
 #define csPin 5  // Chip Select ( Slave Select do protocolo SPI ) do modulo Lora
 #define resetPin 2 // Reset do modulo LoRa
@@ -35,9 +35,9 @@
 
 #define P0 1013.25 // pressão atmosférica média no nível do mar caso precise, mas o bmp.readAltitude ja possui o parâmetro float seaLevelhPa = 1013.25 na documentação
 
-#define THRESHOLD_DESCIDA 1.0   //em metros
-#define THRESHOLD_SUBIDA 1.0  //em metros
-#define ALTURA_MAIN 2.0 //em metros
+#define THRESHOLD_DESCIDA 5.0   //em metros
+#define THRESHOLD_SUBIDA 5.0  //em metros
+#define ALTURA_MAIN 50.0 //em metros
 #define ERRO_BMP 'b' //inicializa uma variável de erro para o BMP 
 
 #define ERRO_SD 's' //inicializa uma variável de erro para o leitor SD
