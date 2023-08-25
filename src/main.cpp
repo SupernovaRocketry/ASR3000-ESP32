@@ -230,6 +230,8 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
         xQueueReceive(SDdataQueue, &doc, 0);
         // data_lineSD += string_dados_sd;
         // data_lineSD += "\n";
+        doc["altminima"] = alturaMinima;
+        doc["altmaxima"] = alturaMaxima;
         arquivoLog = SD.open(nomeConcat, FILE_APPEND);
         // arquivoLog.println(data_lineSD); //é possível manter um arquivoLog.println() em BRANCO para pular linha a cada gravação
         serializeJson(doc, arquivoLog); // funciona como um arquivoLog.print(doc), NÃO PULA LINHA IGUAL .println, ver serializeJsonPretty()
@@ -313,7 +315,7 @@ void checaCondicoes(void *pvParameters)
             alturaMinima = altitude_atual;
           }
           // alturaMaxima
-          Serial.println(statusAtual);
+          //Serial.println(statusAtual);
           if (!subindo && statusAtual == ESTADO_GRAVANDO)
           {
             alturaMaxima = 0;
@@ -357,22 +359,20 @@ void checaCondicoes(void *pvParameters)
             statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue ,não sei se precisa mudar o status talvez para saber o exato momento de ativação
             // Teste usando led
             digitalWrite(REC_DROGUE, HIGH);
-            #ifdef ACIONAMENTO_DEBUG
             digitalWrite(PINO_LED, HIGH);
-#endif
+          
 
           }
           if (altitude_atual < (ALTURA_MAIN + alturaMinima) && descendo)
           {
             statusAtual = ESTADO_RECUPERAMAIN; // Ativar Main
             digitalWrite(REC_MAIN, HIGH);
-#ifdef ACIONAMENTO_DEBUG
             digitalWrite(PINO_BUZZER, HIGH);
-#endif
+
           }
         }
       }
-      vTaskDelay(500 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
+      vTaskDelay(100 / portTICK_PERIOD_MS); // igual ou maior que o tempo que demora pra rodar a task de aquisição
     }
     xSemaphoreGive(xMutex);
   }

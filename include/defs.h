@@ -11,7 +11,7 @@
 
  // #define SERIAL_DEBUG
 // #define LORA_DEBUG
- #define ACIONAMENTO_DEBUG
+ //#define ACIONAMENTO_DEBUG
 //#define SUPERVISORIO_DEBUG
 //pinos do LoRa
 #define csPin 5  // Chip Select ( Slave Select do protocolo SPI ) do modulo Lora
@@ -37,7 +37,7 @@
 
 #define THRESHOLD_DESCIDA 5.0   //em metros
 #define THRESHOLD_SUBIDA 5.0  //em metros
-#define ALTURA_MAIN 50.0 //em metros
+#define ALTURA_MAIN 500.0 //em metros
 #define ERRO_BMP 'b' //inicializa uma variável de erro para o BMP 
 
 #define ERRO_SD 's' //inicializa uma variável de erro para o leitor SD
