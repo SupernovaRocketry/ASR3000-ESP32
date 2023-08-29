@@ -511,12 +511,13 @@ void setup()
     Serial.println(erro);
 #endif
   }
-
+if(RBF == HIGH){
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0); // cria a task que trata os dados
   xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 0, NULL, 0); // cria a task que checa as condições de voo
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);               // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1);          // cria a task que envia os dados pelo LoRa
   vTaskStartScheduler();
+}
 }
 
 void loop()
