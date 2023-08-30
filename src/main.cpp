@@ -246,6 +246,8 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
       arquivoLog = SD.open(nomeConcat, FILE_APPEND);
       // arquivoLog.println(data_lineSD); //é possível manter um arquivoLog.println() em BRANCO para pular linha a cada gravação
       serializeJson(doc, arquivoLog); // funciona como um arquivoLog.print(doc), NÃO PULA LINHA IGUAL .println, ver serializeJsonPretty()
+      arquivoLog.print("Status Atual:");
+      arquivoLog.println(statusAtual);
 #ifdef SERIAL_DEBUG
       Serial.println("Dados gravados no cartão SD:");
       // Serial.println(data_lineSD);
@@ -300,8 +302,9 @@ void checaCondicoes(void *pvParameters)
         {
           if (digitalRead(RBF) == LOW)
           {
-            statusAtual = ESTADO_GRAVANDO;
             alturaMinima = altitude_atual; // altura mínima registrada no momento de retirada do RBF
+            statusAtual = ESTADO_GRAVANDO;
+           
 #ifdef ACIONAMENTO_DEBUG
             Serial.println("Remove before flight retirado!");
 #endif
