@@ -100,7 +100,7 @@ void aquisicaoDados(void *pvParameters)
     pressao_atual = bmp.readPressure();
     temperatura_atual = bmp.readTemperature();
     altitude_atual = bmp.readAltitude();
-    tempo_vel = millis();                                                                          // em segundos
+    tempo_vel = millis();                                                           // em segundos
     velocidade_atual = (altitude_atual - altitude_anterior) * 1000 / (tempo_vel - tempo_anterior); // em metros por segundo
     altitude_anterior = altitude_atual;
     if (tempo_vel > tempo_anterior + 1000)
@@ -234,6 +234,8 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
         doc["altmaxima"] = alturaMaxima;
         arquivoLog = SD.open(nomeConcat, FILE_APPEND);
         // arquivoLog.println(data_lineSD); //é possível manter um arquivoLog.println() em BRANCO para pular linha a cada gravação
+        arquivoLog.print("Status Atual:");
+        arquivoLog.println(statusAtual);
         serializeJson(doc, arquivoLog); // funciona como um arquivoLog.print(doc), NÃO PULA LINHA IGUAL .println, ver serializeJsonPretty()
 #ifdef SERIAL_DEBUG
         Serial.println("Dados gravados no cartão SD:");
@@ -242,18 +244,13 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
 #endif
         arquivoLog.close();
         contador_sd++;
-      }
-      arquivoLog = SD.open(nomeConcat, FILE_APPEND);
-      // arquivoLog.println(data_lineSD); //é possível manter um arquivoLog.println() em BRANCO para pular linha a cada gravação
-      serializeJson(doc, arquivoLog); // funciona como um arquivoLog.print(doc), NÃO PULA LINHA IGUAL .println, ver serializeJsonPretty()
-      arquivoLog.print("Status Atual:");
-      arquivoLog.println(statusAtual);
+      }      
 #ifdef SERIAL_DEBUG
       Serial.println("Dados gravados no cartão SD:");
       // Serial.println(data_lineSD);
       serializeJson(doc, Serial); // funciona como um Serial.print(doc)
 #endif
-      arquivoLog.close();
+  
       contador_sd = 0;
     }
   }
@@ -262,9 +259,9 @@ void task_gravaSD(void *pvParameters) // task do cartão SD
 
 void task_envia_lora(void *pvParameters) //
 {
-  byte localAddress = 0xBB; // Endereco deste dispositivo LoRa
-  byte msgCount = 0;        // Contador de mensagens enviadas
-  byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0xFF envia para todos devices )
+  // byte localAddress = 0xBB; // Endereco deste dispositivo LoRa
+  // byte msgCount = 0;        // Contador de mensagens enviadas
+  // byte destination = 0xFF;  // Endereco do dispositivo para enviar a mensagem (0xFF envia para todos devices )
   while (1)
   {
     if (uxQueueMessagesWaiting(LORAdataQueue) > LORA_MAX)
@@ -289,7 +286,7 @@ void task_envia_lora(void *pvParameters) //
 #endif
     }
   }
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+  vTaskDelay(100/ portTICK_PERIOD_MS);
 }
 void checaCondicoes(void *pvParameters)
 {
@@ -362,8 +359,7 @@ void checaCondicoes(void *pvParameters)
             statusAtual = ESTADO_RECUPERANDO; // Ativar Drogue ,não sei se precisa mudar o status talvez para saber o exato momento de ativação
             // Teste usando led
             digitalWrite(REC_DROGUE, HIGH);
-            digitalWrite(PINO_LED, HIGH);
-          
+            digitalWrite(PINO_LED, HIGH); 
 
           }
           if (altitude_atual < (ALTURA_MAIN + alturaMinima) && descendo)
@@ -514,12 +510,18 @@ void setup()
     Serial.println(erro);
 #endif
   }
-if(RBF == HIGH){
+
+if(digitalRead(RBF) == HIGH){
   xTaskCreatePinnedToCore(aquisicaoDados, "task aquisicaoDados", 3000, NULL, 1, NULL, 0); // cria a task que trata os dados
   xTaskCreatePinnedToCore(checaCondicoes, "task checaCondicoes", 3000, NULL, 0, NULL, 0); // cria a task que checa as condições de voo
   xTaskCreatePinnedToCore(task_gravaSD, "task sd", 3000, NULL, 1, NULL, 1);               // cria a task que salva no cartão SD
   xTaskCreatePinnedToCore(task_envia_lora, "task lora", 3000, NULL, 1, NULL, 1);          // cria a task que envia os dados pelo LoRa
-  vTaskStartScheduler();
+  vTaskStartScheduler(); 
+}
+else{
+#ifdef SERIAL_DEBUG
+    Serial.println("NÃO INICIOU TUDO");
+  #endif
 }
 }
 
